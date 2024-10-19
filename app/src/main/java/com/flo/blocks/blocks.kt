@@ -1,6 +1,5 @@
 package com.flo.blocks
 
-import android.icu.text.Transliterator.Position
 import androidx.compose.ui.unit.IntOffset
 import java.util.ArrayList
 import kotlin.math.max
@@ -10,6 +9,9 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     init {
         assert(width * height == positions.size)
     }
+
+    fun possiblyPlaceablePositions(): List<OffsetBrick> =
+        (0..BOARD_SIZE - height).flatMap { y -> (0..BOARD_SIZE - width).map { x -> this.offset(IntOffset(x, y)) } }
 
     fun getPosition(x: Int, y: Int): Boolean {
         return x in 0 until width && y in 0 until height && positions[x + y * width]
@@ -90,6 +92,8 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
             .flatMap { y -> (0 until width).map { x -> IntOffset(x, y) } }
             .filter { getPosition(it.x, it.y) }
     }
+
+    fun offset(offset: IntOffset) = OffsetBrick(offset, this)
 }
 
 fun rect(x0: Int, y0: Int, x1: Int, y1: Int): Brick =
@@ -147,8 +151,11 @@ data class OffsetBrick(val offset: IntOffset, val brick: Brick) {
         return 0 <= offset.x && offset.x + brick.width <= BOARD_SIZE &&
                 0 <= offset.y && offset.y + brick.height <= BOARD_SIZE
     }
-    fun onBoard(board: IntArray): Boolean {
-        return onBoard() && positionList().all { board[it.x + it.y * BOARD_SIZE] == 0 }
+    fun onBoard(board: BooleanArray): Boolean {
+        return onBoard() && positionList().all { !board[it.x + it.y * BOARD_SIZE] }
+    }
+    fun onBoard(board: Array<BlockColor>): Boolean {
+        return onBoard() && positionList().all { board[it.x + it.y * BOARD_SIZE].free() }
     }
     fun positionList(): List<IntOffset> {
         return brick.positionList().map { it + offset }

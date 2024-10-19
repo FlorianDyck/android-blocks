@@ -11,25 +11,31 @@ import com.flo.blocks.ui.theme.BlocksTheme
 
 fun color(hue: Float, sat: Float = 1f, lightness: Float = .5f): Color = Color.hsl(hue, sat, lightness)
 
-val RED = color(0f)
-val GREEN = color(120f, lightness = .44f)
-val BLUE = color(240f, lightness = .6f)
+enum class BlockColor(val color: Color){
+    BACKGROUND(Color.LightGray),
+    SELECTED(Color.DarkGray),
+    RED(0f),
+    GREEN(120f, lightness = .44f),
+    BLUE(240f, lightness = .6f),
+    ORANGE(30f),
+    YELLOW(60f, lightness = .5f),
+    CYAN(190f),
+    VIOLET(285f)
 
-val ORANGE = color(30f)
-val YELLOW = color(60f, lightness = .5f)
-val CYAN = color(190f)
-val VIOLET = color(285f)
-
-val COLORS = arrayOf(Color.LightGray, RED, GREEN, BLUE, YELLOW, CYAN, VIOLET, ORANGE)
-
+    ;
+    constructor(hue: Float, sat: Float = 1f, lightness: Float = .5f) : this(color(hue, sat, lightness))
+    fun free() = this == BACKGROUND || this == SELECTED
+    fun used() = !free()
+}
+val BLOCK_COLORS by lazy { BlockColor.entries.subList(2,BlockColor.entries.size) }
 
 @Preview(showBackground = true)
 @Composable
 fun ColorPreview() {
     BlocksTheme {
         Column {
-            for (color in COLORS) {
-                Text("$color", Modifier.weight(1f).background(color))
+            for (color in BlockColor.entries) {
+                Text("$color", Modifier.weight(1f).background(color.color))
             }
         }
     }

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -49,14 +48,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.zIndex
-import com.flo.blocks.ui.theme.BlocksTheme
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.ArrayList
 import java.util.Random
@@ -64,7 +61,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 
-const val BOARD_SIZE = 8
 val INDEX_OFFSETS = arrayOf(
     Pair(-2.75f, 3f),
     Pair(2.75f, 3f),
@@ -158,49 +154,10 @@ fun Brick(color: Color, blockSize: Dp, brick: Brick) {
     }
 }
 
-
-fun place(board: IntArray, hovering: OffsetBrick, color: Int): Int {
-    for (position in hovering.positionList()) {
-        board[position.x + position.y * BOARD_SIZE] = color
-    }
-    val lines = ArrayList<Int>()
-    val rows = ArrayList<Int>()
-    for (line in hovering.lines()) {
-        if ((0 until BOARD_SIZE).all { row -> board[row + BOARD_SIZE * line] != 0 }) {
-            lines.add(line)
-        }
-    }
-    for (row in hovering.rows()) {
-        if ((0 until BOARD_SIZE).all { line -> board[row + BOARD_SIZE * line] != 0 }) {
-            rows.add(row)
-        }
-    }
-    for (line in lines) {
-        for (row in 0 until BOARD_SIZE) {
-            board[row + BOARD_SIZE * line] = 0
-        }
-    }
-    for (row in rows) {
-        for (line in 0 until BOARD_SIZE) {
-            board[row + BOARD_SIZE * line] = 0
-        }
-    }
-    return lines.size + rows.size
-}
+inline fun<reified T> randArray(size: Int, values: List<T>) = Array(size) { values[Random().nextInt(values.size)] }
 
 fun randIntArray(size: Int, bound: Int, min: Int = 0) =
     IntArray(size) { min + Random().nextInt(bound - min) }
-
-fun canPlace(board: IntArray, brick: Brick): Boolean {
-    for (y in 0..BOARD_SIZE - brick.height) {
-        for (x in 0..BOARD_SIZE - brick.width) {
-            if (OffsetBrick(IntOffset(x, y), brick).onBoard(board)) {
-                return true
-            }
-        }
-    }
-    return false
-}
 
 @Composable
 fun Game(computeViewModel: ComputeViewModel) {
@@ -213,9 +170,9 @@ fun Game(computeViewModel: ComputeViewModel) {
         min(width, height) / (BOARD_SIZE)
     )
 
-    var board by rememberSaveable { mutableStateOf(IntArray(BOARD_SIZE * BOARD_SIZE) { 0 }) }
+    var board by rememberSaveable { mutableStateOf(Array(BOARD_SIZE * BOARD_SIZE) { BlockColor.BACKGROUND }) }
     var bricks by rememberSaveable { mutableStateOf(randIntArray(3, BRICKS.size)) }
-    var colors by rememberSaveable { mutableStateOf(randIntArray(3, COLORS.size, 1)) }
+    var colors by rememberSaveable { mutableStateOf(randArray(3, BLOCK_COLORS)) }
     var score by rememberSaveable { mutableIntStateOf(0) }
     val suggestion by computeViewModel.nextMove.asStateFlow().collectAsState()
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
@@ -223,20 +180,20 @@ fun Game(computeViewModel: ComputeViewModel) {
 
     fun newBlocks() {
         bricks = randIntArray(3, BRICKS.size)
-        colors = randIntArray(3, COLORS.size, 1)
+        colors = randArray(3, BLOCK_COLORS)
     }
 
-    if (colors.all { it == 0 }) {
+    if (colors.all { it.free() }) {
         newBlocks()
     }
     computeViewModel.compute(
         board,
         bricks
             .map { i -> BRICKS[i] }
-            .filterIndexed { index, _ -> colors[index] > 0 }
+            .filterIndexed { index, _ -> colors[index].used() }
     )
 
-    val lost = (0..2).all { colors[it] == 0 || !canPlace(board, BRICKS[bricks[it]]) }
+    val lost = (0..2).all { colors[it].free() || !canPlace(board, BRICKS[bricks[it]]) }
 
     var offset: Pair<Int, Offset>? by remember { mutableStateOf(null) }
 
@@ -253,7 +210,7 @@ fun Game(computeViewModel: ComputeViewModel) {
     val selected by remember { derivedStateOf { hovering?.onBoard(board) ?: false } }
 
     @Composable
-    fun Board(board: IntArray, blockSize: Dp) {
+    fun Board(board: Array<BlockColor>, blockSize: Dp) {
         Column {
             for (y in 0 until BOARD_SIZE) {
                 Row {
@@ -262,7 +219,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                             if ( suggestion?.getPosition (x,y) == true || (selected && hovering!!.getPosition(x, y)) ) {
                                 Color.Gray
                             } else {
-                                COLORS[board[x + y * BOARD_SIZE]]
+                                board[x + y * BOARD_SIZE].color
                             },
                             blockSize
                         ) //{ Text("$x,$y") }
@@ -278,7 +235,7 @@ fun Game(computeViewModel: ComputeViewModel) {
         val density = LocalDensity.current.density
         val vibrate = vibrateCallback(LocalContext.current)
         Box(
-            if (colors[i] == 0) {
+            if (colors[i].free()) {
                 Modifier
             } else {
                 Modifier
@@ -316,7 +273,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                                         vibrate()
                                         score += cleared
                                     }
-                                    colors[i] = 0
+                                    colors[i] = BlockColor.BACKGROUND
                                     colors = colors.clone()
                                 }
                                 offset = null
@@ -326,7 +283,7 @@ fun Game(computeViewModel: ComputeViewModel) {
             }.size((5 * blockSize).dp),
             contentAlignment = Alignment.Center
         ) {
-            Brick(COLORS[colors[i]], blockSize.dp, BRICKS[bricks[i]])
+            Brick(colors[i].color, blockSize.dp, BRICKS[bricks[i]])
         }
     }
 
@@ -342,7 +299,7 @@ fun Game(computeViewModel: ComputeViewModel) {
             when (result) {
                 SnackbarResult.ActionPerformed -> {
                     score = 0
-                    board = IntArray(BOARD_SIZE * BOARD_SIZE) { 0 }
+                    board = Array(BOARD_SIZE * BOARD_SIZE) { BlockColor.BACKGROUND }
                     newBlocks()
                 }
 
@@ -383,13 +340,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                         Row(
                             Modifier
                                 .height((5 * blockSize).dp)
-                                .zIndex(
-                                    if (offset?.first == 2) {
-                                        0f
-                                    } else {
-                                        1f
-                                    }
-                                ),
+                                .zIndex( if (offset?.first == 2) 0f else 1f ),
                             horizontalArrangement = spaced,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -413,13 +364,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                         Column(
                             Modifier
                                 .width((5 * blockSize).dp)
-                                .zIndex(
-                                    if (offset?.first == 2) {
-                                        0f
-                                    } else {
-                                        1f
-                                    }
-                                ),
+                                .zIndex( if (offset?.first == 2) 0f else 1f ),
                             verticalArrangement = spaced,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
