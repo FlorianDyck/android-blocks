@@ -13,9 +13,8 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     fun possiblyPlaceablePositions(): List<OffsetBrick> =
         (0..BOARD_SIZE - height).flatMap { y -> (0..BOARD_SIZE - width).map { x -> this.offset(IntOffset(x, y)) } }
 
-    fun getPosition(x: Int, y: Int): Boolean {
-        return x in 0 until width && y in 0 until height && positions[x + y * width]
-    }
+    fun getPosition(x: Int, y: Int): Boolean =
+        x in 0 until width && y in 0 until height && positions[x + y * width]
 
     operator fun plus(other: Brick): Brick {
         val w = max(width, other.width)
@@ -27,29 +26,23 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
         })
     }
 
-    fun rotate(): Brick {
-        return Brick(height, width, BooleanArray(width * height) {
-            val x = it % height
-            val y = it / height
-            getPosition(y, height - x - 1)
-        })
-    }
+    fun rotate(): Brick = Brick(height, width, BooleanArray(width * height) {
+        val x = it % height
+        val y = it / height
+        getPosition(y, height - x - 1)
+    })
 
-    fun flipHorizonally(): Brick {
-        return Brick(width, height, BooleanArray(width * height) {
-            val x = it % width
-            val y = it / width
-            getPosition(width - x - 1, y)
-        })
-    }
+    fun flipHorizonally(): Brick = Brick(width, height, BooleanArray(width * height) {
+        val x = it % width
+        val y = it / width
+        getPosition(width - x - 1, y)
+    })
 
-    fun flipVertically(): Brick {
-        return Brick(width, height, BooleanArray(width * height) {
-            val x = it % width
-            val y = it / width
-            getPosition(x, height - y - 1)
-        })
-    }
+    fun flipVertically(): Brick = Brick(width, height, BooleanArray(width * height) {
+        val x = it % width
+        val y = it / width
+        getPosition(x, height - y - 1)
+    })
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -75,15 +68,10 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
         var result = ""
         for (y in 0 until height) {
             for (x in 0 until width) {
-                result += if (getPosition(x, y)) {
-                    "X"
-                } else {
-                    " "
-                }
+                result += if (getPosition(x, y)) "X" else " "
             }
             result += "\n"
         }
-
         return result.dropLast(1)
     }
 
@@ -143,11 +131,11 @@ fun buildBlocks(): List<Brick> {
 val BRICKS = buildBlocks()
 
 data class OffsetBrick(val offset: IntOffset, val brick: Brick) {
-    fun getXMin() = offset.x
-    fun getXMax() = offset.x + brick.width - 1
-    fun getYMin() = offset.y
-    fun getYMax() = offset.y + brick.height - 1
-    fun onBoard(): Boolean {
+    private fun getXMin() = offset.x
+    private fun getXMax() = offset.x + brick.width - 1
+    private fun getYMin() = offset.y
+    private fun getYMax() = offset.y + brick.height - 1
+    private fun onBoard(): Boolean {
         return 0 <= offset.x && offset.x + brick.width <= BOARD_SIZE &&
                 0 <= offset.y && offset.y + brick.height <= BOARD_SIZE
     }

@@ -82,53 +82,48 @@ class ComputeViewModel : ViewModel() {
             val subList = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
             val brick = bricks[i]
 
-            for (y in 0..BOARD_SIZE - brick.height) {
-                for (x in 0..BOARD_SIZE - brick.width) {
-                    if (parentName == "") {
-                        val lineProgress = (x + 1f) / (BOARD_SIZE - brick.width + 1)
-                        val boardProgress = (lineProgress + y) / (BOARD_SIZE - brick.height + 1)
-                        progress.value =
-                            if (bricks.size == 1) boardProgress
-                            else if (i == 0) boardProgress * .95f
-                            else .95f + .05f * (boardProgress + i - 1) / (bricks.size - 1)
-                    }
+            for (offsetBrick in brick.possiblyPlaceablePositions()) {
+                if (parentName == "") {
+                    val lineProgress = (offsetBrick.offset.x + 1f) / (BOARD_SIZE - brick.width + 1)
+                    val boardProgress = (lineProgress + offsetBrick.offset.y) / (BOARD_SIZE - brick.height + 1)
+                    progress.value =
+                        if (bricks.size == 1) boardProgress
+                        else if (i == 0) boardProgress * .95f
+                        else .95f + .05f * (boardProgress + i - 1) / (bricks.size - 1)
+                }
+                if (!offsetBrick.onBoard(board)) continue
 
-                    val myName = "$parentName, $i/${bricks.size}, ($x,$y)"
+                val myName = "$parentName, $i/${bricks.size}, ${offsetBrick.offset}"
 //                    currentMove.update { myName }
 
-                    val offsetBrick = OffsetBrick(IntOffset(x, y), brick)
-                    if (!offsetBrick.onBoard(board)) continue
+                val newBoard = board.clone()
+                val anyCleared = place(newBoard, offsetBrick) > 0
 
-                    val newBoard = board.clone()
-                    val anyCleared = place(newBoard, offsetBrick) > 0
+                if (computationStartState != currentState) return
 
-
-                    if (computationStartState != currentState) return
-
-                    val myMoves = previousMoves + listOf(offsetBrick)
-                    if (subList.isEmpty()) {
-                        val myScore = evaluate(newBoard)
-                        if (myScore > movesScore) {
-                            Log.i("compute evaluation", "${myName}: $myScore")
-                            mutex.withLock {
-                                if (computationStartState != currentState) return
-                                moves = myMoves
-                                movesScore = myScore
-                                nextMove.update { myMoves[0] }
-                            }
+                val myMoves = previousMoves + listOf(offsetBrick)
+                if (subList.isEmpty()) {
+                    // all blocks set, evaluate position
+                    val myScore = evaluate(newBoard)
+                    if (myScore > movesScore) {
+                        Log.i("compute evaluation", "${myName}: $myScore")
+                        mutex.withLock {
+                            if (computationStartState != currentState) return
+                            moves = myMoves
+                            movesScore = myScore
+                            nextMove.update { myMoves[0] }
                         }
                     }
-
-                    if (subList.isNotEmpty() && !(forceClearBeforeLast && !anyCleared && subList.size == 1)) {
-                        computeSync(
-                            computationStartState,
-                            newBoard,
-                            subList,
-                            myMoves,
-                            myName,
-                            !anyCleared && i > 0
-                        )
-                    }
+                } else if (!(forceClearBeforeLast && !anyCleared && subList.size == 1)) {
+                    // recursively set blocks
+                    computeSync(
+                        computationStartState,
+                        newBoard,
+                        subList,
+                        myMoves,
+                        myName,
+                        !anyCleared && i > 0
+                    )
                 }
             }
         }
