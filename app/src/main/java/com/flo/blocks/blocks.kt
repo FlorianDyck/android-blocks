@@ -108,23 +108,17 @@ fun buildBlocks(): List<Brick> {
     fun addAllVersions(brick: Brick) {
         addRotations(brick)
         val flipped = brick.flipVertically()
-        if (flipped !in result) {
-            addRotations(flipped)
-        }
+        if (flipped !in result) addRotations(flipped)
     }
 
-    for (i in 0..4) {
-        addAllVersions(rect(0, 0, i, 0))
-    }
-    for (i in 1..2) {
-        addAllVersions(rect(0, 0, i, i))
-    }
-    for (i in 1..2) {
-        addAllVersions(rect(0, 0, i, 0) + field(0, 1))
-    }
-    addAllVersions(rect(0, 0, 2, 0) + rect(0, 0, 0, 2))
-    addAllVersions(rect(0, 0, 2, 0) + field(1, 1))
-    addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1))
+    for (i in 0..4) addAllVersions(rect(0, 0, i, 0)) // I
+    for (i in 1..2) addAllVersions(rect(0, 0, i, i)) // Squares
+    for (i in 1..2) addAllVersions(rect(0, 0, i, 0) + field(0, 1)) // L
+
+    addAllVersions(rect(0, 0, 2, 0) + rect(0, 0, 0, 2)) // L_
+    addAllVersions(rect(0, 0, 2, 0) + field(1, 1)) // T
+    addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1)) // /\/
+
     return result
 }
 
