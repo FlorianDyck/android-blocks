@@ -7,6 +7,7 @@ import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.draggable2D
@@ -23,6 +24,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -174,6 +180,8 @@ fun Game(computeViewModel: ComputeViewModel) {
     var bricks by rememberSaveable { mutableStateOf(randIntArray(3, BRICKS.size)) }
     var colors by rememberSaveable { mutableStateOf(randArray(3, BLOCK_COLORS)) }
     var score by rememberSaveable { mutableIntStateOf(0) }
+    var lastState: Triple<Array<BlockColor>, IntArray, Array<BlockColor>>? by rememberSaveable { mutableStateOf(null) }
+
     val suggestion by computeViewModel.nextMove.asStateFlow().collectAsState()
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by computeViewModel.progress.asStateFlow().collectAsState()
@@ -181,17 +189,12 @@ fun Game(computeViewModel: ComputeViewModel) {
     fun newBlocks() {
         bricks = randIntArray(3, BRICKS.size)
         colors = randArray(3, BLOCK_COLORS)
+        lastState = null
     }
 
     if (colors.all { it.free() }) {
         newBlocks()
     }
-    computeViewModel.compute(
-        board,
-        bricks
-            .map { i -> BRICKS[i] }
-            .filterIndexed { index, _ -> colors[index].used() }
-    )
 
     val lost = (0..2).all { colors[it].free() || !canPlace(board, BRICKS[bricks[it]]) }
 
@@ -208,6 +211,16 @@ fun Game(computeViewModel: ComputeViewModel) {
         }
     }
     val selected by remember { derivedStateOf { hovering?.onBoard(board) ?: false } }
+
+    val undo: () -> Unit = {
+        lastState?.let {
+            board = it.first
+            bricks = it.second
+            colors = it.third
+            lastState = null
+            computeViewModel.stop()
+        }
+    }
 
     @Composable
     fun Board(board: Array<BlockColor>, blockSize: Dp) {
@@ -268,12 +281,14 @@ fun Game(computeViewModel: ComputeViewModel) {
                         onDragStopped = {
                             if (offset?.first == i) {
                                 if (selected) {
+                                    lastState = Triple(board.clone(), bricks.clone(), colors.clone())
                                     val cleared = place(board, hovering!!, colors[i])
+                                    computeViewModel.stop()
                                     if (cleared > 0) {
                                         vibrate()
                                         score += cleared
                                     }
-                                    colors[i] = BlockColor.BACKGROUND
+                                    colors[i] = BlockColor.INVISIBLE
                                     colors = colors.clone()
                                 }
                                 offset = null
@@ -311,6 +326,29 @@ fun Game(computeViewModel: ComputeViewModel) {
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
+        },
+        floatingActionButton = {
+            Column (verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AnimatedVisibility(visible = lastState != null) {
+                    FloatingActionButton(onClick = undo) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
+                    }
+                }
+                AnimatedVisibility(visible = suggestion == null) {
+                    FloatingActionButton(
+                        onClick = {
+                            computeViewModel.compute(
+                                board,
+                                bricks
+                                    .map { i -> BRICKS[i] }
+                                    .filterIndexed { index, _ -> colors[index].used() }
+                            )
+                        },
+                    ) {
+                        Icon(Icons.Filled.Search, "hint")
+                    }
+                }
+            }
         }
     ) { contentPadding ->
         Box(
@@ -340,19 +378,18 @@ fun Game(computeViewModel: ComputeViewModel) {
                         Row(
                             Modifier
                                 .height((5 * blockSize).dp)
-                                .zIndex( if (offset?.first == 2) 0f else 1f ),
+                                .zIndex(if (offset?.first == 2) 0f else 1f),
                             horizontalArrangement = spaced,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            for (i in 0..1) {
-                                Blocks(i = i)
-                            }
+                            Blocks(0)
+                            Blocks(1)
                         }
                         Row(
                             Modifier.height((5 * blockSize).dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Blocks(i = 2)
+                            Blocks(2)
                         }
                     }
                 } else {
@@ -364,19 +401,18 @@ fun Game(computeViewModel: ComputeViewModel) {
                         Column(
                             Modifier
                                 .width((5 * blockSize).dp)
-                                .zIndex( if (offset?.first == 2) 0f else 1f ),
+                                .zIndex(if (offset?.first == 2) 0f else 1f),
                             verticalArrangement = spaced,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            for (i in 0..1) {
-                                Blocks(i = i)
-                            }
+                            Blocks(0)
+                            Blocks(1)
                         }
                         Column(
                             Modifier.width((5 * blockSize).dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Blocks(i = 2)
+                            Blocks(2)
                         }
                     }
                 }
