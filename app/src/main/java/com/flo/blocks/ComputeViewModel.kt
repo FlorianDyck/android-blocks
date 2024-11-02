@@ -23,7 +23,7 @@ class ComputeViewModel : ViewModel() {
     val nextMove: MutableStateFlow<OffsetBrick?> = MutableStateFlow(null)
 
     //    val currentMove = MutableStateFlow("")
-    val progress = MutableStateFlow(0f)
+    val progress = MutableStateFlow(1f)
     private var currentState: Pair<BooleanArray, List<Brick>>? = null
 
     private fun differentBlocksAround(board: BooleanArray, index: Int): Int {
@@ -31,10 +31,10 @@ class ComputeViewModel : ViewModel() {
         fun isDifferent(delta: Int) = (board[index + delta] != isSet)
 
         var result = 0
-        if (index >= BOARD_SIZE && isDifferent(-BOARD_SIZE)) result += 1
-        if (((index % BOARD_SIZE) != 0) && isDifferent(-1)) result += 1
-        if (((index % BOARD_SIZE) != BOARD_SIZE - 1) && isDifferent(1)) result += 1
-        if (index < board.size - BOARD_SIZE && isDifferent(BOARD_SIZE)) result += 1
+        if (if (index >= BOARD_SIZE) isDifferent(-BOARD_SIZE) else !isSet) result += 1
+        if (if ((index % BOARD_SIZE) != 0) isDifferent(-1) else !isSet) result += 1
+        if (if ((index % BOARD_SIZE) != BOARD_SIZE - 1) isDifferent(1) else !isSet) result += 1
+        if (if (index < board.size - BOARD_SIZE) isDifferent(BOARD_SIZE) else !isSet) result += 1
         return result
     }
 
@@ -53,7 +53,7 @@ class ComputeViewModel : ViewModel() {
             }
         }.sum()
         var score =
-            1f * (freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 3 - blockGrades[4] * 2 - blockGrades[3])
+            1f * (3 * freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 3 - blockGrades[4] * 2 - blockGrades[3])
 //        if (score > movesScore) {
 //            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
 //        }
@@ -147,6 +147,15 @@ class ComputeViewModel : ViewModel() {
             }
             withContext(Dispatchers.Default) {
                 computeSync(computationStartState, computationStartState.first, bricks, listOf())
+            }
+        }
+    }
+
+    fun stop() {
+        viewModelScope.launch {
+            mutex.withLock {
+                currentState = null
+                nextMove.value = null
             }
         }
     }
