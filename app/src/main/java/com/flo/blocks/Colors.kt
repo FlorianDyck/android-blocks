@@ -12,6 +12,7 @@ import com.flo.blocks.ui.theme.BlocksTheme
 fun color(hue: Float, sat: Float = 1f, lightness: Float = .5f): Color = Color.hsl(hue, sat, lightness)
 
 enum class BlockColor(val color: Color){
+    INVISIBLE(Color.Transparent),
     BACKGROUND(Color.LightGray),
     SELECTED(Color.DarkGray),
     RED(0f),
@@ -24,10 +25,10 @@ enum class BlockColor(val color: Color){
 
     ;
     constructor(hue: Float, sat: Float = 1f, lightness: Float = .5f) : this(color(hue, sat, lightness))
-    fun free() = this == BACKGROUND || this == SELECTED
+    fun free() = this == INVISIBLE || this == BACKGROUND || this == SELECTED
     fun used() = !free()
 }
-val BLOCK_COLORS by lazy { BlockColor.entries.subList(2,BlockColor.entries.size) }
+val BLOCK_COLORS by lazy { BlockColor.entries.filter { it.used() } }
 
 @Preview(showBackground = true)
 @Composable
