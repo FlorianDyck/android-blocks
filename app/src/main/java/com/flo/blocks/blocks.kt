@@ -111,13 +111,13 @@ fun buildBlocks(): List<Brick> {
         if (flipped !in result) addRotations(flipped)
     }
 
-    for (i in 0..4) addAllVersions(rect(0, 0, i, 0)) // I
-    for (i in 1..2) addAllVersions(rect(0, 0, i, i)) // Squares
-    for (i in 1..2) addAllVersions(rect(0, 0, i, 0) + field(0, 1)) // L
+    for (i in 0..4) addAllVersions(rect(0, 0, i, 0)) // 1*i
+    for (i in 1..2) addAllVersions(rect(0, 0, i, i)) // i*i
+    for (i in 1..2) addAllVersions(rect(0, 0, i, 0) + field(0, 1)) // iL2
 
-    addAllVersions(rect(0, 0, 2, 0) + rect(0, 0, 0, 2)) // L_
+    addAllVersions(rect(0, 0, 2, 0) + rect(0, 0, 0, 2)) // 3L3
     addAllVersions(rect(0, 0, 2, 0) + field(1, 1)) // T
-    addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1)) // /\/
+    addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1)) // Z
 
     return result
 }
