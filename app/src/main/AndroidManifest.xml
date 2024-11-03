@@ -17,7 +17,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="Blocks"
-            android:theme="@style/Theme.Blocks">
+            android:theme="@style/Theme.Blocks"
+            android:enableOnBackInvokedCallback="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

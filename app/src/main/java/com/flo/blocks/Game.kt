@@ -7,6 +7,8 @@ import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.activity.BackEventCompat
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -52,51 +54,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
-import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.ArrayList
 import java.util.Random
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 
-
-val INDEX_OFFSETS = arrayOf(
-    Pair(-2.75f, 3f),
-    Pair(2.75f, 3f),
-    Pair(0f, 8.5f)
-)
-
-fun indexBrickOffset(
-    vertical: Boolean,
-    index: Int,
-    brick: Brick
-): Offset {
-    val indexOffset = INDEX_OFFSETS[index]
-    val shortDirection = .5f * (BOARD_SIZE) + indexOffset.first
-    val longDirection = BOARD_SIZE + indexOffset.second
-
-    val directedIndexOffset = if (vertical) {
-        Offset(shortDirection, longDirection)
-    } else {
-        Offset(longDirection, shortDirection)
-    }
-
-    val brickOffset = Offset(-brick.width / 2f, -brick.height / 2f)
-    return directedIndexOffset + brickOffset
-}
-
-fun offsetToPosition(vertical: Boolean, index: Int, offset: Offset, brick: Brick): OffsetBrick =
-    OffsetBrick((offset + indexBrickOffset(vertical, index, brick)).round(), brick)
-
-fun positionToOffset(vertical: Boolean, index: Int, position: IntOffset, brick: Brick): Offset =
-    position.toOffset() - indexBrickOffset(vertical, index, brick)
 
 @Composable
 fun Block(color: Color, size: Dp, content: @Composable () -> Unit = {}) {
@@ -160,7 +134,8 @@ fun Brick(color: Color, blockSize: Dp, brick: Brick) {
     }
 }
 
-inline fun<reified T> randArray(size: Int, values: List<T>) = Array(size) { values[Random().nextInt(values.size)] }
+inline fun <reified T> randArray(size: Int, values: List<T>) =
+    Array(size) { values[Random().nextInt(values.size)] }
 
 fun randIntArray(size: Int, bound: Int, min: Int = 0) =
     IntArray(size) { min + Random().nextInt(bound - min) }
@@ -180,7 +155,11 @@ fun Game(computeViewModel: ComputeViewModel) {
     var bricks by rememberSaveable { mutableStateOf(randIntArray(3, BRICKS.size)) }
     var colors by rememberSaveable { mutableStateOf(randArray(3, BLOCK_COLORS)) }
     var score by rememberSaveable { mutableIntStateOf(0) }
-    var lastState: Triple<Array<BlockColor>, IntArray, Array<BlockColor>>? by rememberSaveable { mutableStateOf(null) }
+    var lastState: Triple<Array<BlockColor>, IntArray, Array<BlockColor>>? by rememberSaveable {
+        mutableStateOf(
+            null
+        )
+    }
 
     val suggestion by computeViewModel.nextMove.asStateFlow().collectAsState()
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
@@ -200,42 +179,83 @@ fun Game(computeViewModel: ComputeViewModel) {
 
     var offset: Pair<Int, Offset>? by remember { mutableStateOf(null) }
 
+    var boardPosition: Offset by remember { mutableStateOf(Offset.Zero) }
+    var blockPosition: Offset? by remember { mutableStateOf(null) }
+
     val blockDensity = LocalDensity.current.density * blockSize
     val hovering by remember {
         derivedStateOf {
-            offset?.let {
-                val brick = BRICKS[bricks[it.first]]
-                val ibo = indexBrickOffset(vertical, it.first, brick)
-                OffsetBrick((it.second / blockDensity + ibo).round(), brick)
+            blockPosition?.let {
+                OffsetBrick(
+                    ((it - boardPosition) / blockDensity).round(),
+                    BRICKS[bricks[offset!!.first]]
+                )
             }
         }
     }
     val selected by remember { derivedStateOf { hovering?.onBoard(board) ?: false } }
 
-    val undo: () -> Unit = {
+    var undo: () -> Unit = {}
+
+    var backProgress by remember {
+        mutableStateOf(0f)
+    }
+
+    class MyOnBackPressedCallback : OnBackPressedCallback(lastState != null) {
+        override fun handleOnBackPressed() {
+            backProgress = 0f
+            undo()
+        }
+
+        override fun handleOnBackProgressed(backEvent: BackEventCompat) {
+            super.handleOnBackProgressed(backEvent)
+            backProgress = backEvent.progress.pow(1f / 3)
+        }
+    }
+    val myOnBackPressedCallback by remember {
+        mutableStateOf(MyOnBackPressedCallback())
+    }
+
+    undo = {
         lastState?.let {
             board = it.first
             bricks = it.second
             colors = it.third
             lastState = null
             computeViewModel.stop()
+            myOnBackPressedCallback.isEnabled = false
         }
     }
 
+    val activity = (LocalContext.current as MainActivity)
+    activity.onBackPressedDispatcher.addCallback(activity, myOnBackPressedCallback)
+
     @Composable
     fun Board(board: Array<BlockColor>, blockSize: Dp) {
-        Column {
+        Column(Modifier.onGloballyPositioned { coordinates ->
+            boardPosition = coordinates.positionInRoot()
+        }) {
             for (y in 0 until BOARD_SIZE) {
                 Row {
                     for (x in 0 until BOARD_SIZE) {
-                        Block(
-                            if ( suggestion?.getPosition (x,y) == true || (selected && hovering!!.getPosition(x, y)) ) {
-                                Color.Gray
-                            } else {
-                                board[x + y * BOARD_SIZE].color
-                            },
-                            blockSize
-                        ) //{ Text("$x,$y") }
+                        var color = if (
+                            suggestion?.getPosition(x, y) == true ||
+                            (selected && hovering!!.getPosition(x, y))
+                        ) {
+                            Color.Gray
+                        } else {
+                            board[x + y * BOARD_SIZE].color
+                        }
+                        if (backProgress > 0 && lastState != null) {
+                            color = Color(
+                                ColorUtils.blendARGB(
+                                    color.toArgb(),
+                                    lastState!!.first[x + y * BOARD_SIZE].color.toArgb(),
+                                    backProgress
+                                )
+                            )
+                        }
+                        Block(color, blockSize) //{ Text("$x,$y") }
                     }
                 }
             }
@@ -252,13 +272,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                 Modifier
             } else {
                 Modifier
-                    .zIndex(
-                        if (offset?.first == i) {
-                            1f
-                        } else {
-                            0f
-                        }
-                    )
+                    .zIndex(if (offset?.first == i) 1f else 0f)
                     .offset {
                         if (offset?.first == i) {
                             offset!!.second.round()
@@ -281,24 +295,46 @@ fun Game(computeViewModel: ComputeViewModel) {
                         onDragStopped = {
                             if (offset?.first == i) {
                                 if (selected) {
-                                    lastState = Triple(board.clone(), bricks.clone(), colors.clone())
+                                    lastState =
+                                        Triple(board.clone(), bricks.clone(), colors.clone())
                                     val cleared = place(board, hovering!!, colors[i])
                                     computeViewModel.stop()
                                     if (cleared > 0) {
                                         vibrate()
                                         score += cleared
                                     }
+                                    myOnBackPressedCallback.isEnabled = lastState != null
                                     colors[i] = BlockColor.INVISIBLE
                                     colors = colors.clone()
                                 }
                                 offset = null
+                                blockPosition = null
                             }
                         }
                     )
             }.size((5 * blockSize).dp),
             contentAlignment = Alignment.Center
         ) {
-            Brick(colors[i].color, blockSize.dp, BRICKS[bricks[i]])
+            Box(Modifier
+                .onGloballyPositioned { coordinates ->
+                    if (offset?.first == i) {
+                        blockPosition = coordinates.positionInRoot()
+                    }
+                }
+            ) {
+                Brick(
+                    if (backProgress > 0 && lastState != null) {
+                        Color(
+                            ColorUtils.blendARGB(
+                                colors[i].color.toArgb(),
+                                lastState!!.third[i].color.toArgb(),
+                                backProgress
+                            )
+                        )
+                    } else
+                        colors[i].color, blockSize.dp, BRICKS[bricks[i]]
+                )
+            }
         }
     }
 
@@ -328,7 +364,7 @@ fun Game(computeViewModel: ComputeViewModel) {
             SnackbarHost(hostState = snackbarHostState)
         },
         floatingActionButton = {
-            Column (verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AnimatedVisibility(visible = lastState != null) {
                     FloatingActionButton(onClick = undo) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
@@ -360,6 +396,8 @@ fun Game(computeViewModel: ComputeViewModel) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 //                Text(text = "Score: $score, Computing: $computation", style = MaterialTheme.typography.titleMedium)
+//                Text("BoardOffset $boardPosition, BlockOffset $blockPosition")
+//                Text(text = "backProgress: $backProgress")
                 Text(text = "Score: $score", style = MaterialTheme.typography.titleMedium)
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
