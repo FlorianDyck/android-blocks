@@ -165,16 +165,6 @@ fun Game(computeViewModel: ComputeViewModel) {
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by computeViewModel.progress.asStateFlow().collectAsState()
 
-    fun newBlocks() {
-        bricks = randIntArray(3, BRICKS.size)
-        colors = randArray(3, BLOCK_COLORS)
-        lastState = null
-    }
-
-    if (colors.all { it.free() }) {
-        newBlocks()
-    }
-
     val lost = (0..2).all { colors[it].free() || !canPlace(board, BRICKS[bricks[it]]) }
 
     var offset: Pair<Int, Offset>? by remember { mutableStateOf(null) }
@@ -214,6 +204,13 @@ fun Game(computeViewModel: ComputeViewModel) {
     }
     val myOnBackPressedCallback by remember {
         mutableStateOf(MyOnBackPressedCallback())
+    }
+
+    fun newBlocks() {
+        bricks = randIntArray(3, BRICKS.size)
+        colors = randArray(3, BLOCK_COLORS)
+        lastState = null
+        myOnBackPressedCallback.isEnabled = false
     }
 
     undo = {
@@ -303,9 +300,12 @@ fun Game(computeViewModel: ComputeViewModel) {
                                         vibrate()
                                         score += cleared
                                     }
-                                    myOnBackPressedCallback.isEnabled = lastState != null
                                     colors[i] = BlockColor.INVISIBLE
                                     colors = colors.clone()
+                                    if (colors.all { it.free() }) {
+                                        newBlocks()
+                                    }
+                                    myOnBackPressedCallback.isEnabled = lastState != null
                                 }
                                 offset = null
                                 blockPosition = null
