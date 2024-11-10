@@ -9,6 +9,9 @@ import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,6 +51,7 @@ class GameViewModel : ViewModel() {
             this.game.value = history.pop()
         }
         lastGameState.value = if (history.isNotEmpty()) history.peek() else null
+        stopComputation()
         return canUndo()
     }
 
@@ -70,65 +74,83 @@ class GameViewModel : ViewModel() {
      * Only exception: A cross can be cleared by placing the first block later.
      * We are willing to accept this for a ~3 times speed increase.
      */
+    private suspend fun computeParallel(
+        computationStartState: Pair<Board, List<Brick>>,
+        board: Board,
+        bricks: List<Brick>,
+        previousMoves: List<OffsetBrick>
+    ) {
+        val brickSteps = bricks.map { it.offsetsWithin(board.width, board.height).size }
+        val multiplier = 20
+        val totalSteps = brickSteps[0] * (multiplier - 1) + brickSteps.sum()
+        var steps = 0
+        for (i in bricks.indices) {
+            val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
+            val stepIncrease = if (i == 0) multiplier else 1
+            coroutineScope {
+                for (offsetBrick in bricks[i].offsetsWithin(board.width, board.height)) {
+                    launch {
+                        steps += stepIncrease
+                        progress.value = steps.toFloat() / totalSteps
+                        // Log.d("progress", "$i, ${offsetBrick.offset}, ${progress.value}")
+                        computeSync(computationStartState, board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                    }
+                }
+            }
+        }
+        progress.value = 1f
+    }
+
     private suspend fun computeSync(
         computationStartState: Pair<Board, List<Brick>>,
         board: Board,
         bricks: List<Brick>,
-        previousMoves: List<OffsetBrick>,
-        parentName: String = "",
-        forceClearBeforeLast: Boolean = false
+        previousMoves: List<OffsetBrick>
     ) {
         for (i in bricks.indices) {
-            val subList = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
-            val brick = bricks[i]
-
-            for (offsetBrick in brick.offsetsWithin(board.width, board.height)) {
-                if (parentName == "") {
-                    val lineProgress = (offsetBrick.offset.x + 1f) / (board.width - brick.width + 1)
-                    val boardProgress = (lineProgress + offsetBrick.offset.y) / (board.height - brick.height + 1)
-                    progress.value =
-                        if (bricks.size == 1) boardProgress
-                        else if (i == 0) boardProgress * .95f
-                        else .95f + .05f * (boardProgress + i - 1) / (bricks.size - 1)
-                }
-                if (!board.canPlace(offsetBrick)) continue
-
-                val myName = "$parentName, $i/${bricks.size}, ${offsetBrick.offset}"
-//                    currentMove.update { myName }
-
-                val (newBoard, cleared) = board.place(offsetBrick)
-
-                if (computationStartState != currentState) return
-
-                val myMoves = previousMoves + listOf(offsetBrick)
-                if (subList.isEmpty()) {
-                    // all blocks set, evaluate position
-                    val myScore = newBoard.evaluate()
-                    if (myScore > movesScore) {
-                        Log.i("compute evaluation", "${myName}: $myScore")
-                        mutex.withLock {
-                            if (computationStartState != currentState) return
-                            moves = myMoves
-                            movesScore = myScore
-                            nextMove.update { myMoves[0] }
-                        }
-                    }
-                } else if (!(forceClearBeforeLast && cleared == 0 && subList.size == 1)) {
-                    // recursively set blocks
-                    computeSync(
-                        computationStartState,
-                        newBoard,
-                        subList,
-                        myMoves,
-                        myName,
-                        cleared == 0 && i > 0
-                    )
-                }
+            val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
+            for (offsetBrick in bricks[i].offsetsWithin(board.width, board.height)) {
+                computeSync(computationStartState, board, offsetBrick, remainingBricks, previousMoves, i > 0)
             }
         }
-//        if (computationStartState == currentState) {
-//            currentMove.update { parentName }
-//        }
+    }
+
+    suspend fun computeSync(
+        computationStartState: Pair<Board, List<Brick>>,
+        board: Board,
+        offsetBrick: OffsetBrick,
+        remainingBricks: List<Brick>,
+        previousMoves: List<OffsetBrick>,
+        forceClearBeforeLast: Boolean
+    ) {
+        if (!board.canPlace(offsetBrick)) return
+
+        val (newBoard, cleared) = board.place(offsetBrick)
+
+        if (computationStartState != currentState) return
+
+        val myMoves = previousMoves + listOf(offsetBrick)
+        if (remainingBricks.isEmpty()) {
+            // all blocks set, evaluate position
+            val myScore = newBoard.evaluate()
+            if (myScore > movesScore) {
+                mutex.withLock {
+                    if (computationStartState != currentState) return
+                    if (myScore <= movesScore) return
+                    moves = myMoves
+                    movesScore = myScore
+                    nextMove.value = myMoves[0]
+                }
+            }
+        } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
+            // recursively set blocks
+            computeSync(
+                computationStartState,
+                newBoard,
+                remainingBricks,
+                myMoves
+            )
+        }
     }
 
     fun startComputation(bricks: List<Brick>) {
@@ -145,7 +167,7 @@ class GameViewModel : ViewModel() {
                 movesScore = Float.NEGATIVE_INFINITY
             }
             withContext(Dispatchers.Default) {
-                computeSync(computationStartState, computationStartState.first, bricks, listOf())
+                computeParallel(computationStartState, computationStartState.first, bricks, listOf())
             }
         }
     }
