@@ -44,10 +44,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +65,6 @@ import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.Random
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -134,14 +132,8 @@ fun Brick(color: Color, blockSize: Dp, brick: Brick) {
     }
 }
 
-inline fun <reified T> randArray(size: Int, values: List<T>) =
-    Array(size) { values[Random().nextInt(values.size)] }
-
-fun randIntArray(size: Int, bound: Int, min: Int = 0) =
-    IntArray(size) { min + Random().nextInt(bound - min) }
-
 @Composable
-fun Game(computeViewModel: ComputeViewModel) {
+fun Game(gameViewModel: GameViewModel) {
     val configuration = (LocalContext.current as Activity).resources.configuration
     val width = configuration.screenWidthDp
     val height = configuration.screenHeightDp
@@ -151,21 +143,14 @@ fun Game(computeViewModel: ComputeViewModel) {
         min(width, height) / (BOARD_SIZE)
     )
 
-    var board by rememberSaveable { mutableStateOf(Array(BOARD_SIZE * BOARD_SIZE) { BlockColor.BACKGROUND }) }
-    var bricks by rememberSaveable { mutableStateOf(randIntArray(3, BRICKS.size)) }
-    var colors by rememberSaveable { mutableStateOf(randArray(3, BLOCK_COLORS)) }
-    var score by rememberSaveable { mutableIntStateOf(0) }
-    var lastState: Triple<Array<BlockColor>, IntArray, Array<BlockColor>>? by rememberSaveable {
-        mutableStateOf(
-            null
-        )
-    }
+    val game by gameViewModel.game.asStateFlow().collectAsState()
+    val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
 
-    val suggestion by computeViewModel.nextMove.asStateFlow().collectAsState()
+    val suggestion by gameViewModel.nextMove.asStateFlow().collectAsState()
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
-    val computationProgress by computeViewModel.progress.asStateFlow().collectAsState()
+    val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
-    val lost = (0..2).all { colors[it].free() || !canPlace(board, BRICKS[bricks[it]]) }
+    val lost = game.lost()
 
     var offset: Pair<Int, Offset>? by remember { mutableStateOf(null) }
 
@@ -178,23 +163,18 @@ fun Game(computeViewModel: ComputeViewModel) {
             blockPosition?.let {
                 OffsetBrick(
                     ((it - boardPosition) / blockDensity).round(),
-                    BRICKS[bricks[offset!!.first]]
+                    game.bricks[offset!!.first]
                 )
             }
         }
     }
-    val selected by remember { derivedStateOf { hovering?.onBoard(board) ?: false } }
+    val selected by remember { derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false } }
+    var backProgress by remember { mutableFloatStateOf(0f) }
 
-    var undo: () -> Unit = {}
-
-    var backProgress by remember {
-        mutableStateOf(0f)
-    }
-
-    class MyOnBackPressedCallback : OnBackPressedCallback(lastState != null) {
+    class MyOnBackPressedCallback : OnBackPressedCallback(lastGameState != null) {
         override fun handleOnBackPressed() {
             backProgress = 0f
-            undo()
+            isEnabled = gameViewModel.undo()
         }
 
         override fun handleOnBackProgressed(backEvent: BackEventCompat) {
@@ -206,48 +186,30 @@ fun Game(computeViewModel: ComputeViewModel) {
         mutableStateOf(MyOnBackPressedCallback())
     }
 
-    fun newBlocks() {
-        bricks = randIntArray(3, BRICKS.size)
-        colors = randArray(3, BLOCK_COLORS)
-        lastState = null
-        myOnBackPressedCallback.isEnabled = false
-    }
-
-    undo = {
-        lastState?.let {
-            board = it.first
-            bricks = it.second
-            colors = it.third
-            lastState = null
-            computeViewModel.stop()
-            myOnBackPressedCallback.isEnabled = false
-        }
-    }
-
     val activity = (LocalContext.current as MainActivity)
     activity.onBackPressedDispatcher.addCallback(activity, myOnBackPressedCallback)
 
     @Composable
-    fun Board(board: Array<BlockColor>, blockSize: Dp) {
+    fun Board(board: ColoredBoard, blockSize: Dp) {
         Column(Modifier.onGloballyPositioned { coordinates ->
             boardPosition = coordinates.positionInRoot()
         }) {
-            for (y in 0 until BOARD_SIZE) {
+            for (y in 0 until board.height) {
                 Row {
-                    for (x in 0 until BOARD_SIZE) {
+                    for (x in 0 until board.width) {
                         var color = if (
                             suggestion?.getPosition(x, y) == true ||
                             (selected && hovering!!.getPosition(x, y))
                         ) {
                             Color.Gray
                         } else {
-                            board[x + y * BOARD_SIZE].color
+                            board.board[x + y * BOARD_SIZE].color
                         }
-                        if (backProgress > 0 && lastState != null) {
+                        if (backProgress > 0 && lastGameState != null) {
                             color = Color(
                                 ColorUtils.blendARGB(
                                     color.toArgb(),
-                                    lastState!!.first[x + y * BOARD_SIZE].color.toArgb(),
+                                    lastGameState!!.board.board[x + y * BOARD_SIZE].color.toArgb(),
                                     backProgress
                                 )
                             )
@@ -265,7 +227,7 @@ fun Game(computeViewModel: ComputeViewModel) {
         val density = LocalDensity.current.density
         val vibrate = vibrateCallback(LocalContext.current)
         Box(
-            if (colors[i].free()) {
+            if (game.colors[i].free()) {
                 Modifier
             } else {
                 Modifier
@@ -285,27 +247,16 @@ fun Game(computeViewModel: ComputeViewModel) {
                             if (offset == null) offset = Pair(
                                 i, Offset(
                                     0f,
-                                    it.y - (2 + 5 + BRICKS[bricks[i]].height) * blockSize * density / 2
+                                    it.y - (2 + 5 + game.bricks[i].height) * blockSize * density / 2
                                 )
                             )
                         },
                         onDragStopped = {
                             if (offset?.first == i) {
                                 if (selected) {
-                                    lastState =
-                                        Triple(board.clone(), bricks.clone(), colors.clone())
-                                    val cleared = place(board, hovering!!, colors[i])
-                                    computeViewModel.stop()
-                                    if (cleared > 0) {
-                                        vibrate()
-                                        score += cleared
-                                    }
-                                    colors[i] = BlockColor.INVISIBLE
-                                    colors = colors.clone()
-                                    if (colors.all { it.free() }) {
-                                        newBlocks()
-                                    }
-                                    myOnBackPressedCallback.isEnabled = lastState != null
+                                    val cleared = gameViewModel.placeBrick(i, hovering!!.offset)
+                                    if (cleared > 0) vibrate()
+                                    myOnBackPressedCallback.isEnabled = gameViewModel.canUndo()
                                 }
                                 offset = null
                                 blockPosition = null
@@ -323,16 +274,16 @@ fun Game(computeViewModel: ComputeViewModel) {
                 }
             ) {
                 Brick(
-                    if (backProgress > 0 && lastState != null) {
+                    if (backProgress > 0 && lastGameState != null) {
                         Color(
                             ColorUtils.blendARGB(
-                                colors[i].color.toArgb(),
-                                lastState!!.third[i].color.toArgb(),
+                                game.colors[i].color.toArgb(),
+                                lastGameState!!.colors[i].color.toArgb(),
                                 backProgress
                             )
                         )
                     } else
-                        colors[i].color, blockSize.dp, BRICKS[bricks[i]]
+                        game.colors[i].color, blockSize.dp, game.bricks[i]
                 )
             }
         }
@@ -349,9 +300,8 @@ fun Game(computeViewModel: ComputeViewModel) {
             )
             when (result) {
                 SnackbarResult.ActionPerformed -> {
-                    score = 0
-                    board = Array(BOARD_SIZE * BOARD_SIZE) { BlockColor.BACKGROUND }
-                    newBlocks()
+                    gameViewModel.newGame()
+                    myOnBackPressedCallback.isEnabled = false
                 }
 
                 SnackbarResult.Dismissed -> TODO()
@@ -365,19 +315,17 @@ fun Game(computeViewModel: ComputeViewModel) {
         },
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AnimatedVisibility(visible = lastState != null) {
-                    FloatingActionButton(onClick = undo) {
+                AnimatedVisibility(visible = lastGameState != null) {
+                    FloatingActionButton(onClick = { myOnBackPressedCallback.isEnabled = gameViewModel.undo() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
                 }
                 AnimatedVisibility(visible = suggestion == null) {
                     FloatingActionButton(
                         onClick = {
-                            computeViewModel.compute(
-                                board,
-                                bricks
-                                    .map { i -> BRICKS[i] }
-                                    .filterIndexed { index, _ -> colors[index].used() }
+                            gameViewModel.startComputation(
+                                game.bricks
+                                    .filterIndexed { index, _ -> game.colors[index].used() }
                             )
                         },
                     ) {
@@ -398,7 +346,7 @@ fun Game(computeViewModel: ComputeViewModel) {
 //                Text(text = "Score: $score, Computing: $computation", style = MaterialTheme.typography.titleMedium)
 //                Text("BoardOffset $boardPosition, BlockOffset $blockPosition")
 //                Text(text = "backProgress: $backProgress")
-                Text(text = "Score: $score", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Score: ${game.score}", style = MaterialTheme.typography.titleMedium)
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
                         progress = { computationProgress },
@@ -412,7 +360,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                         verticalArrangement = spaced,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Board(board, blockSize.dp)
+                        Board(game.board, blockSize.dp)
                         Row(
                             Modifier
                                 .height((5 * blockSize).dp)
@@ -435,7 +383,7 @@ fun Game(computeViewModel: ComputeViewModel) {
                         horizontalArrangement = spaced,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Board(board, blockSize.dp)
+                        Board(game.board, blockSize.dp)
                         Column(
                             Modifier
                                 .width((5 * blockSize).dp)

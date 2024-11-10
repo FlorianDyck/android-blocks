@@ -16,12 +16,12 @@ import com.flo.blocks.ui.theme.BlocksTheme
 class MainActivity : ComponentActivity() {
 
 
-    private val computeViewModel by viewModels<ComputeViewModel>(
+    private val computeViewModel by viewModels<GameViewModel>(
         factoryProducer = {
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     @Suppress("UNCHECKED_CAST")
-                    return ComputeViewModel() as T
+                    return GameViewModel() as T
                 }
             }
         }

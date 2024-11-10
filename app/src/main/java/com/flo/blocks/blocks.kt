@@ -129,15 +129,9 @@ data class OffsetBrick(val offset: IntOffset, val brick: Brick) {
     private fun getXMax() = offset.x + brick.width - 1
     private fun getYMin() = offset.y
     private fun getYMax() = offset.y + brick.height - 1
-    private fun onBoard(): Boolean {
-        return 0 <= offset.x && offset.x + brick.width <= BOARD_SIZE &&
-                0 <= offset.y && offset.y + brick.height <= BOARD_SIZE
-    }
-    fun onBoard(board: BooleanArray): Boolean {
-        return onBoard() && positionList().all { !board[it.x + it.y * BOARD_SIZE] }
-    }
-    fun onBoard(board: Array<BlockColor>): Boolean {
-        return onBoard() && positionList().all { board[it.x + it.y * BOARD_SIZE].free() }
+    fun onBoard(width: Int, height: Int): Boolean {
+        return 0 <= offset.x && offset.x + brick.width <= width &&
+                0 <= offset.y && offset.y + brick.height <= height
     }
     fun positionList(): List<IntOffset> {
         return brick.positionList().map { it + offset }

@@ -11,8 +11,41 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Stack
 
-class ComputeViewModel : ViewModel() {
+
+class GameViewModel : ViewModel() {
+
+    val game: MutableStateFlow<GameState> = MutableStateFlow(GameState())
+    val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
+    val history: Stack<GameState> = Stack()
+
+    private fun updateGameState(newState: GameState) {
+        stopComputation()
+
+        history.push(game.value)
+        lastGameState.value = game.value
+        game.value = newState
+    }
+
+    fun placeBrick(index: Int, position: IntOffset): Int {
+        updateGameState(game.value.place(index, position))
+        return game.value.score - history.peek().score
+    }
+
+    fun newGame() {
+        updateGameState(GameState())
+    }
+
+    fun canUndo(): Boolean = history.isNotEmpty()
+
+    fun undo(): Boolean {
+        if (history.isNotEmpty()) {
+            this.game.value = history.pop()
+        }
+        lastGameState.value = if (history.isNotEmpty()) history.peek() else null
+        return canUndo()
+    }
 
     /**
      * locks: computationStartState, moves, nextMove, movesScore
@@ -24,44 +57,7 @@ class ComputeViewModel : ViewModel() {
 
     //    val currentMove = MutableStateFlow("")
     val progress = MutableStateFlow(1f)
-    private var currentState: Pair<BooleanArray, List<Brick>>? = null
-
-    private fun differentBlocksAround(board: BooleanArray, index: Int): Int {
-        val isSet = board[index]
-        fun isDifferent(delta: Int) = (board[index + delta] != isSet)
-
-        var result = 0
-        if (if (index >= BOARD_SIZE) isDifferent(-BOARD_SIZE) else !isSet) result += 1
-        if (if ((index % BOARD_SIZE) != 0) isDifferent(-1) else !isSet) result += 1
-        if (if ((index % BOARD_SIZE) != BOARD_SIZE - 1) isDifferent(1) else !isSet) result += 1
-        if (if (index < board.size - BOARD_SIZE) isDifferent(BOARD_SIZE) else !isSet) result += 1
-        return result
-    }
-
-    private fun evaluate(board: BooleanArray): Float {
-        val freeBlocks = board.count { !it }
-        val blockGrades = IntArray(5)
-        val freedomGrades = IntArray(5)
-        val borderLength = board.mapIndexed { index, color ->
-            if (color) {
-                blockGrades[differentBlocksAround(board, index)] += 1
-                0
-            } else {
-                val result = differentBlocksAround(board, index)
-                freedomGrades[result] += 1
-                result
-            }
-        }.sum()
-        var score =
-            1f * (3 * freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 3 - blockGrades[4] * 2 - blockGrades[3])
-//        if (score > movesScore) {
-//            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
-//        }
-        if (canPlace(board, rect(0, 0, 2, 2))) score += 10
-        if (canPlace(board, rect(0, 0, 4, 0))) score += 5
-        if (canPlace(board, rect(0, 0, 0, 4))) score += 5
-        return score
-    }
+    private var currentState: Pair<Board, List<Brick>>? = null
 
     /**
      * forceClearBeforeLast:
@@ -71,8 +67,8 @@ class ComputeViewModel : ViewModel() {
      * We are willing to accept this for a ~3 times speed increase.
      */
     private suspend fun computeSync(
-        computationStartState: Pair<BooleanArray, List<Brick>>,
-        board: BooleanArray,
+        computationStartState: Pair<Board, List<Brick>>,
+        board: Board,
         bricks: List<Brick>,
         previousMoves: List<OffsetBrick>,
         parentName: String = "",
@@ -91,20 +87,20 @@ class ComputeViewModel : ViewModel() {
                         else if (i == 0) boardProgress * .95f
                         else .95f + .05f * (boardProgress + i - 1) / (bricks.size - 1)
                 }
-                if (!offsetBrick.onBoard(board)) continue
+                if (!board.canPlace(offsetBrick)) continue
 
                 val myName = "$parentName, $i/${bricks.size}, ${offsetBrick.offset}"
 //                    currentMove.update { myName }
 
                 val newBoard = board.clone()
-                val anyCleared = place(newBoard, offsetBrick) > 0
+                val anyCleared = newBoard.place(offsetBrick) > 0
 
                 if (computationStartState != currentState) return
 
                 val myMoves = previousMoves + listOf(offsetBrick)
                 if (subList.isEmpty()) {
                     // all blocks set, evaluate position
-                    val myScore = evaluate(newBoard)
+                    val myScore = newBoard.evaluate()
                     if (myScore > movesScore) {
                         Log.i("compute evaluation", "${myName}: $myScore")
                         mutex.withLock {
@@ -132,9 +128,9 @@ class ComputeViewModel : ViewModel() {
 //        }
     }
 
-    fun compute(board: Array<BlockColor>, bricks: List<Brick>) {
+    fun startComputation(bricks: List<Brick>) {
         Log.i("compute", "called")
-        val computationStartState = Pair(BooleanArray(board.size) { board[it].used() }, bricks)
+        val computationStartState = Pair(game.value.board.board(), bricks)
         if (computationStartState == currentState) return
 
         viewModelScope.launch {
@@ -151,11 +147,12 @@ class ComputeViewModel : ViewModel() {
         }
     }
 
-    fun stop() {
+    fun stopComputation() {
         viewModelScope.launch {
             mutex.withLock {
                 currentState = null
                 nextMove.value = null
+                progress.value = 1f
             }
         }
     }
