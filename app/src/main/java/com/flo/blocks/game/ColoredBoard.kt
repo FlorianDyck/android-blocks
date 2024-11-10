@@ -45,12 +45,12 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         return Board(width, height, BooleanArray(width * height) { board[it].used() })
     }
 
-    fun place(hovering: OffsetBrick, color: BlockColor): Pair<ColoredBoard, Int> {
+    fun place(hovering: ColoredOffsetBrick): Pair<ColoredBoard, Int> {
         val result = ColoredBoard(width, height, board.clone())
-        for (position in hovering.positionList()) result[position] = color
+        for (position in hovering.brick.positionList()) result[position] = hovering.color
 
-        val lines = hovering.lines().filter { line -> lineIndices.all { row -> result[row, line].used() } }
-        val rows = hovering.rows().filter { row -> rowIndices.all { line -> result[row, line].used() } }
+        val lines = hovering.brick.lines().filter { line -> lineIndices.all { row -> result[row, line].used() } }
+        val rows = hovering.brick.rows().filter { row -> rowIndices.all { line -> result[row, line].used() } }
 
         for (line in lines) for (row in rowIndices) result[row, line] = BlockColor.BACKGROUND
         for (row in rows) for (line in lineIndices) result[row, line] = BlockColor.BACKGROUND

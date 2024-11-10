@@ -65,10 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
-import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBoard
+import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
-import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.max
 import kotlin.math.min
@@ -121,13 +120,13 @@ fun vibrateCallback(context: Context): () -> Unit {
 }
 
 @Composable
-fun Brick(color: Color, blockSize: Dp, brick: Brick) {
+fun Brick(brick: ColoredBrick, blockSize: Dp) {
     Column {
-        for (y in 0 until brick.height) {
+        for (y in 0 until brick.brick.height) {
             Row {
-                for (x in 0 until brick.width) {
-                    if (brick.getPosition(x, y)) {
-                        Block(color, blockSize)
+                for (x in 0 until brick.brick.width) {
+                    if (brick.brick.getPosition(x, y)) {
+                        Block(brick.color.color, blockSize)
                     } else {
                         Spacer(modifier = Modifier.size(blockSize))
                     }
@@ -168,10 +167,7 @@ fun Game(gameViewModel: GameViewModel) {
     val hovering by remember {
         derivedStateOf {
             blockPosition?.let {
-                OffsetBrick(
-                    ((it - boardPosition) / blockDensity).round(),
-                    game.bricks[offset!!.first]
-                )
+                game.bricks[offset!!.first]?.brick?.offset(((it - boardPosition) / blockDensity).round())
             }
         }
     }
@@ -235,7 +231,7 @@ fun Game(gameViewModel: GameViewModel) {
         val density = LocalDensity.current.density
         val vibrate = vibrateCallback(LocalContext.current)
         Box(
-            if (game.colors[i].free()) {
+            if (game.bricks[i] == null) {
                 Modifier
             } else {
                 Modifier
@@ -255,7 +251,7 @@ fun Game(gameViewModel: GameViewModel) {
                             if (offset == null) offset = Pair(
                                 i, Offset(
                                     0f,
-                                    it.y - (2 + 5 + game.bricks[i].height) * blockSize * density / 2
+                                    it.y - (2 + 5 + game.bricks[i]!!.brick.height) * blockSize * density / 2
                                 )
                             )
                         },
@@ -275,7 +271,7 @@ fun Game(gameViewModel: GameViewModel) {
         ) {
             if (backProgress > 0 && lastGameState != null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Brick(lastGameState!!.colors[i].color, blockSize.dp, lastGameState!!.bricks[i])
+                    lastGameState!!.bricks[i]?.let { Brick(it, blockSize.dp) }
                 }
             }
             Box(
@@ -292,7 +288,7 @@ fun Game(gameViewModel: GameViewModel) {
                         }
                     }
                 ) {
-                    Brick(game.colors[i].color, blockSize.dp, game.bricks[i])
+                    game.bricks[i]?.let { Brick(it, blockSize.dp) }
                 }
             }
         }
@@ -335,8 +331,7 @@ fun Game(gameViewModel: GameViewModel) {
                     FloatingActionButton(
                         onClick = {
                             gameViewModel.startComputation(
-                                game.bricks
-                                    .filterIndexed { index, _ -> game.colors[index].used() }
+                                game.bricks.filterNotNull().map { it.brick }
                             )
                         },
                     ) {

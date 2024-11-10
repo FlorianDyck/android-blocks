@@ -1,11 +1,10 @@
 package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
-import java.util.ArrayList
 import kotlin.math.max
 
 
-data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
+open class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     init {
         assert(width * height == positions.size)
     }
@@ -83,63 +82,4 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     fun offsetsWithin(width: Int, height: Int): List<OffsetBrick> {
         return (0..height - this.height).flatMap { y -> (0..width - this.width).map { x -> offset(IntOffset(x, y)) } }
     }
-}
-
-fun rect(x0: Int, y0: Int, x1: Int, y1: Int): Brick =
-    Brick(x1 + 1, y1 + 1, BooleanArray((x1 + 1) * (y1 + 1)) {
-        val width = x1 + 1
-        val x = it % width
-        val y = it / width
-        x in x0..x1 && y in y0..y1
-    })
-
-fun field(x: Int, y: Int): Brick = rect(x, y, x, y)
-
-fun buildBlocks(): List<Brick> {
-    val result = ArrayList<Brick>()
-
-    fun addRotations(brick: Brick) {
-        var rotated = brick
-        do {
-            result.add(rotated)
-            rotated = rotated.rotate()
-        } while (rotated != brick)
-    }
-
-    fun addAllVersions(brick: Brick) {
-        addRotations(brick)
-        val flipped = brick.flipVertically()
-        if (flipped !in result) addRotations(flipped)
-    }
-
-    for (i in 0..4) addAllVersions(rect(0, 0, i, 0)) // 1*i
-    for (i in 1..2) addAllVersions(rect(0, 0, i, i)) // i*i
-    for (i in 1..2) addAllVersions(rect(0, 0, i, 0) + field(0, 1)) // iL2
-
-    addAllVersions(rect(0, 0, 2, 0) + rect(0, 0, 0, 2)) // 3L3
-    addAllVersions(rect(0, 0, 2, 0) + field(1, 1)) // T
-    addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1)) // Z
-
-    return result
-}
-
-val BRICKS = buildBlocks()
-
-data class OffsetBrick(val offset: IntOffset, val brick: Brick) {
-    private fun getXMin() = offset.x
-    private fun getXMax() = offset.x + brick.width - 1
-    private fun getYMin() = offset.y
-    private fun getYMax() = offset.y + brick.height - 1
-    fun onBoard(width: Int, height: Int): Boolean {
-        return 0 <= offset.x && offset.x + brick.width <= width &&
-                0 <= offset.y && offset.y + brick.height <= height
-    }
-    fun positionList(): List<IntOffset> {
-        return brick.positionList().map { it + offset }
-    }
-    fun getPosition(x: Int, y: Int): Boolean {
-        return brick.getPosition(x - offset.x, y - offset.y)
-    }
-    fun rows(): IntRange = getXMin()..getXMax()
-    fun lines(): IntRange = getYMin()..getYMax()
 }

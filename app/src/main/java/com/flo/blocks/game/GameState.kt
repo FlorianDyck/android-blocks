@@ -1,34 +1,25 @@
 package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
-import java.util.Random
 
-
-inline fun <reified T> randArray(size: Int, values: List<T>) =
-    Array(size) { values[Random().nextInt(values.size)] }
 
 data class GameState(
     var board: ColoredBoard = ColoredBoard(8, 8),
-    var bricks: Array<Brick> = randArray(3, BRICKS),
-    var colors: Array<BlockColor> = randArray(3, BLOCK_COLORS),
+    var bricks: Array<ColoredBrick?> = Array(3) { randomBrick() },
     var score: Int = 0
 ) {
-    fun lost() = (0..2).all { colors[it].free() || !board.canPlace(bricks[it]) }
+    fun lost() = (0..2).all { bricks[it] == null || !board.canPlace(bricks[it]!!.brick) }
 
     fun place(index: Int, position: IntOffset): GameState {
-        val (newBoard, cleared) = board.place(OffsetBrick(position, bricks[index]), colors[index])
-        var newColors = colors.clone()
-        newColors[index] = BlockColor.INVISIBLE
-        val newBricks = if (newColors.all { it.free() }) {
-            newColors = randArray(3, BLOCK_COLORS)
-            randArray(3, BRICKS)
-        } else {
-            bricks
+        val (newBoard, cleared) = board.place(bricks[index]!!.offset(position))
+        var newBricks = bricks.clone()
+        newBricks[index] = null
+        if (newBricks.all { it == null }) {
+            newBricks = Array(3) { randomBrick() }
         }
         return GameState(
             newBoard,
             newBricks,
-            newColors,
             score + cleared
         )
     }
@@ -41,7 +32,6 @@ data class GameState(
 
         if (board != other.board) return false
         if (!bricks.contentEquals(other.bricks)) return false
-        if (!colors.contentEquals(other.colors)) return false
         if (score != other.score) return false
 
         return true
@@ -50,7 +40,6 @@ data class GameState(
     override fun hashCode(): Int {
         var result = board.hashCode()
         result = 31 * result + bricks.hashCode()
-        result = 31 * result + colors.contentHashCode()
         result = 31 * result + score
         return result
     }
