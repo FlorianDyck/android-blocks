@@ -1,4 +1,4 @@
-package com.flo.blocks
+package com.flo.blocks.game
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column

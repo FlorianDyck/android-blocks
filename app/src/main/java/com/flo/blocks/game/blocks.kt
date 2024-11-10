@@ -1,4 +1,4 @@
-package com.flo.blocks
+package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 import java.util.ArrayList
@@ -9,9 +9,6 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     init {
         assert(width * height == positions.size)
     }
-
-    fun possiblyPlaceablePositions(): List<OffsetBrick> =
-        (0..BOARD_SIZE - height).flatMap { y -> (0..BOARD_SIZE - width).map { x -> this.offset(IntOffset(x, y)) } }
 
     fun getPosition(x: Int, y: Int): Boolean =
         x in 0 until width && y in 0 until height && positions[x + y * width]
@@ -82,6 +79,10 @@ data class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     }
 
     fun offset(offset: IntOffset) = OffsetBrick(offset, this)
+
+    fun offsetsWithin(width: Int, height: Int): List<OffsetBrick> {
+        return (0..height - this.height).flatMap { y -> (0..width - this.width).map { x -> offset(IntOffset(x, y)) } }
+    }
 }
 
 fun rect(x0: Int, y0: Int, x1: Int, y1: Int): Brick =

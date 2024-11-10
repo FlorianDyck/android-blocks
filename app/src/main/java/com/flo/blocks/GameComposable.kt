@@ -65,6 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
+import com.flo.blocks.game.Brick
+import com.flo.blocks.game.ColoredBoard
+import com.flo.blocks.game.GameState
+import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.max
 import kotlin.math.min
@@ -139,12 +143,14 @@ fun Game(gameViewModel: GameViewModel) {
     val width = configuration.screenWidthDp
     val height = configuration.screenHeightDp
     val vertical = height >= width
-    val blockSize = .9f * min(
-        max(width, height) / (BOARD_SIZE + 11),
-        min(width, height) / (BOARD_SIZE)
-    )
 
     val game by gameViewModel.game.asStateFlow().collectAsState()
+    val boardSize = max(game.board.width, game.board.height)
+    val blockSize = .9f * min(
+        max(width, height) / (boardSize + 11),
+        min(width, height) / (boardSize)
+    )
+
     val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
 
     val suggestion by gameViewModel.nextMove.asStateFlow().collectAsState()
@@ -205,13 +211,13 @@ fun Game(gameViewModel: GameViewModel) {
                         ) {
                             Color.Gray
                         } else {
-                            board.board[x + y * BOARD_SIZE].color
+                            board[x, y].color
                         }
                         if (backProgress > 0 && lastGameState != null) {
                             color = Color(
                                 ColorUtils.blendARGB(
                                     color.toArgb(),
-                                    lastGameState!!.board.board[x + y * BOARD_SIZE].color.toArgb(),
+                                    lastGameState!!.board[x, y].color.toArgb(),
                                     backProgress
                                 )
                             )
@@ -355,7 +361,7 @@ fun Game(gameViewModel: GameViewModel) {
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
                         progress = { computationProgress },
-                        modifier = Modifier.width((BOARD_SIZE * blockSize).dp),
+                        modifier = Modifier.width((game.board.width * blockSize).dp),
                     )
                 }
 

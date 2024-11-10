@@ -1,4 +1,4 @@
-package com.flo.blocks
+package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 import java.util.Random
@@ -8,7 +8,7 @@ inline fun <reified T> randArray(size: Int, values: List<T>) =
     Array(size) { values[Random().nextInt(values.size)] }
 
 data class GameState(
-    var board: ColoredBoard = ColoredBoard(),
+    var board: ColoredBoard = ColoredBoard(8, 8),
     var bricks: Array<Brick> = randArray(3, BRICKS),
     var colors: Array<BlockColor> = randArray(3, BLOCK_COLORS),
     var score: Int = 0
@@ -16,8 +16,7 @@ data class GameState(
     fun lost() = (0..2).all { colors[it].free() || !board.canPlace(bricks[it]) }
 
     fun place(index: Int, position: IntOffset): GameState {
-        val newBoard = board.clone()
-        val cleared = newBoard.place(OffsetBrick(position, bricks[index]), colors[index])
+        val (newBoard, cleared) = board.place(OffsetBrick(position, bricks[index]), colors[index])
         var newColors = colors.clone()
         newColors[index] = BlockColor.INVISIBLE
         val newBricks = if (newColors.all { it.free() }) {

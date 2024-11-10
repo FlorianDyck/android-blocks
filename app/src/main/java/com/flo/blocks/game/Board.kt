@@ -1,8 +1,6 @@
-package com.flo.blocks
+package com.flo.blocks.game
 
-
-const val BOARD_SIZE = 8
-val BOARD_INDICES = (0 until BOARD_SIZE)
+import androidx.compose.ui.unit.IntOffset
 
 data class Board(val width: Int, val height: Int, val board: BooleanArray) {
     override fun equals(other: Any?): Boolean {
@@ -25,9 +23,9 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
         return result
     }
 
-    fun canPlace(brick: Brick): Boolean = brick.possiblyPlaceablePositions().any { canPlace(it) }
+    fun canPlace(brick: Brick): Boolean = brick.offsetsWithin(width, height).any { canPlace(it) }
     fun canPlace(brick: OffsetBrick): Boolean {
-        return brick.onBoard(width, height) && brick.positionList().all { !board[it.x + it.y * BOARD_SIZE] }
+        return brick.onBoard(width, height) && brick.positionList().all { !board[it.x + it.y * width] }
     }
 
     private fun differentBlocksAround(index: Int): Int {
@@ -35,10 +33,10 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
         fun isDifferent(delta: Int) = (board[index + delta] != isSet)
 
         var result = 0
-        if (if (index >= BOARD_SIZE) isDifferent(-BOARD_SIZE) else !isSet) result += 1
-        if (if ((index % BOARD_SIZE) != 0) isDifferent(-1) else !isSet) result += 1
-        if (if ((index % BOARD_SIZE) != BOARD_SIZE - 1) isDifferent(1) else !isSet) result += 1
-        if (if (index < board.size - BOARD_SIZE) isDifferent(BOARD_SIZE) else !isSet) result += 1
+        if (if (index >= width) isDifferent(-width) else !isSet) result += 1
+        if (if ((index % width) != 0) isDifferent(-1) else !isSet) result += 1
+        if (if ((index % width) != width - 1) isDifferent(1) else !isSet) result += 1
+        if (if (index < board.size - width) isDifferent(width) else !isSet) result += 1
         return result
     }
 
@@ -67,19 +65,27 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
         return score
     }
 
-    fun place(hovering: OffsetBrick): Int {
-        for (position in hovering.positionList()) board[position.x + position.y * BOARD_SIZE] = true
+    private val rowIndices = 0 until width
+    private val lineIndices = 0 until height
 
-        val lines = hovering.lines().filter { line -> BOARD_INDICES.all { row -> board[row + BOARD_SIZE * line] } }
-        val rows = hovering.rows().filter { row -> BOARD_INDICES.all { line -> board[row + BOARD_SIZE * line] } }
+    operator fun get(x: Int, y: Int) = board[x + y * width]
+    operator fun get(offset: IntOffset) = get(offset.x, offset.y)
 
-        for (line in lines) for (row in BOARD_INDICES) board[row + BOARD_SIZE * line] = false
-        for (row in rows) for (line in BOARD_INDICES) board[row + BOARD_SIZE * line] = false
+    operator fun set(x: Int, y: Int, value: Boolean) = board.set(x + y * width, value)
+    operator fun set(offset: IntOffset, value: Boolean) = set(offset.x, offset.y, value)
 
-        return lines.size + rows.size
+    fun place(hovering: OffsetBrick): Pair<Board, Int> {
+        val result = Board(width, height, board.clone())
+        for (position in hovering.positionList()) result[position] = true
+
+        val lines = hovering.lines().filter { line -> lineIndices.all { row -> result[row, line] } }
+        val rows = hovering.rows().filter { row -> rowIndices.all { line -> result[row, line] } }
+
+        for (line in lines) for (row in rowIndices) result[row, line] = false
+        for (row in rows) for (line in lineIndices) result[row, line] = false
+
+        return Pair(result, lines.size + rows.size)
     }
-
-    fun clone() = Board(width, height, board.clone())
 }
 
 

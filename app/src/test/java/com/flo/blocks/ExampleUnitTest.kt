@@ -1,5 +1,6 @@
 package com.flo.blocks
 
+import com.flo.blocks.game.BRICKS
 import org.junit.Test
 
 import org.junit.Assert.*

@@ -4,6 +4,10 @@ import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flo.blocks.game.Board
+import com.flo.blocks.game.Brick
+import com.flo.blocks.game.GameState
+import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -78,10 +82,10 @@ class GameViewModel : ViewModel() {
             val subList = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
             val brick = bricks[i]
 
-            for (offsetBrick in brick.possiblyPlaceablePositions()) {
+            for (offsetBrick in brick.offsetsWithin(board.width, board.height)) {
                 if (parentName == "") {
-                    val lineProgress = (offsetBrick.offset.x + 1f) / (BOARD_SIZE - brick.width + 1)
-                    val boardProgress = (lineProgress + offsetBrick.offset.y) / (BOARD_SIZE - brick.height + 1)
+                    val lineProgress = (offsetBrick.offset.x + 1f) / (board.width - brick.width + 1)
+                    val boardProgress = (lineProgress + offsetBrick.offset.y) / (board.height - brick.height + 1)
                     progress.value =
                         if (bricks.size == 1) boardProgress
                         else if (i == 0) boardProgress * .95f
@@ -92,8 +96,7 @@ class GameViewModel : ViewModel() {
                 val myName = "$parentName, $i/${bricks.size}, ${offsetBrick.offset}"
 //                    currentMove.update { myName }
 
-                val newBoard = board.clone()
-                val anyCleared = newBoard.place(offsetBrick) > 0
+                val (newBoard, cleared) = board.place(offsetBrick)
 
                 if (computationStartState != currentState) return
 
@@ -110,7 +113,7 @@ class GameViewModel : ViewModel() {
                             nextMove.update { myMoves[0] }
                         }
                     }
-                } else if (!(forceClearBeforeLast && !anyCleared && subList.size == 1)) {
+                } else if (!(forceClearBeforeLast && cleared == 0 && subList.size == 1)) {
                     // recursively set blocks
                     computeSync(
                         computationStartState,
@@ -118,7 +121,7 @@ class GameViewModel : ViewModel() {
                         subList,
                         myMoves,
                         myName,
-                        !anyCleared && i > 0
+                        cleared == 0 && i > 0
                     )
                 }
             }
