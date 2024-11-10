@@ -50,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -182,6 +183,7 @@ fun Game(gameViewModel: GameViewModel) {
             backProgress = backEvent.progress.pow(1f / 3)
         }
     }
+
     val myOnBackPressedCallback by remember {
         mutableStateOf(MyOnBackPressedCallback())
     }
@@ -263,28 +265,29 @@ fun Game(gameViewModel: GameViewModel) {
                             }
                         }
                     )
-            }.size((5 * blockSize).dp),
-            contentAlignment = Alignment.Center
+            }.size((5 * blockSize).dp)
         ) {
-            Box(Modifier
-                .onGloballyPositioned { coordinates ->
-                    if (offset?.first == i) {
-                        blockPosition = coordinates.positionInRoot()
-                    }
+            if (backProgress > 0 && lastGameState != null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Brick(lastGameState!!.colors[i].color, blockSize.dp, lastGameState!!.bricks[i])
                 }
+            }
+            Box(
+                Modifier
+                    .alpha(1 - backProgress)
+                    .fillMaxSize()
+                    .background(if (backProgress > 0) MaterialTheme.colorScheme.background else Color.Transparent),
+                contentAlignment = Alignment.Center
             ) {
-                Brick(
-                    if (backProgress > 0 && lastGameState != null) {
-                        Color(
-                            ColorUtils.blendARGB(
-                                game.colors[i].color.toArgb(),
-                                lastGameState!!.colors[i].color.toArgb(),
-                                backProgress
-                            )
-                        )
-                    } else
-                        game.colors[i].color, blockSize.dp, game.bricks[i]
-                )
+                Box(
+                    Modifier.onGloballyPositioned { coordinates ->
+                        if (offset?.first == i) {
+                            blockPosition = coordinates.positionInRoot()
+                        }
+                    }
+                ) {
+                    Brick(game.colors[i].color, blockSize.dp, game.bricks[i])
+                }
             }
         }
     }
@@ -316,7 +319,9 @@ fun Game(gameViewModel: GameViewModel) {
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AnimatedVisibility(visible = lastGameState != null) {
-                    FloatingActionButton(onClick = { myOnBackPressedCallback.isEnabled = gameViewModel.undo() }) {
+                    FloatingActionButton(onClick = {
+                        myOnBackPressedCallback.isEnabled = gameViewModel.undo()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
                 }
