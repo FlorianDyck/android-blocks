@@ -55,7 +55,7 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
             }
         }.sum()
         var score =
-            1f * (3 * freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 3 - blockGrades[4] * 2 - blockGrades[3])
+            1f * (3 * freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 2 - blockGrades[4] * 5 - blockGrades[3])
 //        if (score > movesScore) {
 //            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
 //        }
