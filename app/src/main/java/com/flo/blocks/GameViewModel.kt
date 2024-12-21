@@ -26,7 +26,7 @@ class GameViewModel : ViewModel() {
     val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
     val history: Stack<GameState> = Stack()
 
-    private fun updateGameState(newState: GameState) {
+    fun updateGameState(newState: GameState) {
         stopComputation()
 
         history.push(game.value)

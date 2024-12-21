@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -137,7 +138,7 @@ fun Brick(brick: ColoredBrick, blockSize: Dp) {
 }
 
 @Composable
-fun Game(gameViewModel: GameViewModel) {
+fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
     val configuration = (LocalContext.current as Activity).resources.configuration
     val width = configuration.screenWidthDp
     val height = configuration.screenHeightDp
@@ -337,6 +338,9 @@ fun Game(gameViewModel: GameViewModel) {
                     ) {
                         Icon(Icons.Filled.Search, "hint")
                     }
+                }
+                FloatingActionButton(onClick = openSettings) {
+                    Icon(Icons.Filled.Settings, "settings")
                 }
             }
         }

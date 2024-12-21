@@ -49,8 +49,8 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         val result = ColoredBoard(width, height, board.clone())
         for (position in hovering.brick.positionList()) result[position] = hovering.color
 
-        val lines = hovering.brick.lines().filter { line -> lineIndices.all { row -> result[row, line].used() } }
-        val rows = hovering.brick.rows().filter { row -> rowIndices.all { line -> result[row, line].used() } }
+        val lines = hovering.brick.lines().filter { line -> rowIndices.all { row -> result[row, line].used() } }
+        val rows = hovering.brick.rows().filter { row -> lineIndices.all { line -> result[row, line].used() } }
 
         for (line in lines) for (row in rowIndices) result[row, line] = BlockColor.BACKGROUND
         for (row in rows) for (line in lineIndices) result[row, line] = BlockColor.BACKGROUND

@@ -78,8 +78,8 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
         val result = Board(width, height, board.clone())
         for (position in hovering.positionList()) result[position] = true
 
-        val lines = hovering.lines().filter { line -> lineIndices.all { row -> result[row, line] } }
-        val rows = hovering.rows().filter { row -> rowIndices.all { line -> result[row, line] } }
+        val lines = hovering.lines().filter { line -> rowIndices.all { row -> result[row, line] } }
+        val rows = hovering.rows().filter { row -> lineIndices.all { line -> result[row, line] } }
 
         for (line in lines) for (row in rowIndices) result[row, line] = false
         for (row in rows) for (line in lineIndices) result[row, line] = false
