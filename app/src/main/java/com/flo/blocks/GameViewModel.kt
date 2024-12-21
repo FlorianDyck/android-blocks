@@ -4,16 +4,15 @@ import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flo.blocks.game.BitContext
 import com.flo.blocks.game.Board
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,6 +65,7 @@ class GameViewModel : ViewModel() {
     //    val currentMove = MutableStateFlow("")
     val progress = MutableStateFlow(1f)
     private var currentState: Pair<Board, List<Brick>>? = null
+    private var job: Job? = null
 
     /**
      * forceClearBeforeLast:
@@ -75,25 +75,21 @@ class GameViewModel : ViewModel() {
      * We are willing to accept this for a ~3 times speed increase.
      */
     private suspend fun computeParallel(
-        computationStartState: Pair<Board, List<Brick>>,
         board: Board,
         bricks: List<Brick>,
         previousMoves: List<OffsetBrick>
     ) {
-        val brickSteps = bricks.map { it.offsetsWithin(board.width, board.height).size }
-        val multiplier = 20
-        val totalSteps = brickSteps[0] * (multiplier - 1) + brickSteps.sum()
+        val totalSteps = bricks.map { it.offsetsWithin(board.width, board.height).size }.sum()
         var steps = 0
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
-            val stepIncrease = if (i == 0) multiplier else 1
             coroutineScope {
                 for (offsetBrick in bricks[i].offsetsWithin(board.width, board.height)) {
                     launch {
-                        steps += stepIncrease
+                        steps += 1
                         progress.value = steps.toFloat() / totalSteps
                         // Log.d("progress", "$i, ${offsetBrick.offset}, ${progress.value}")
-                        computeSync(computationStartState, board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                        computeSync(board, offsetBrick, remainingBricks, previousMoves, i > 0)
                     }
                 }
             }
@@ -102,7 +98,6 @@ class GameViewModel : ViewModel() {
     }
 
     private suspend fun computeSync(
-        computationStartState: Pair<Board, List<Brick>>,
         board: Board,
         bricks: List<Brick>,
         previousMoves: List<OffsetBrick>
@@ -110,13 +105,12 @@ class GameViewModel : ViewModel() {
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
             for (offsetBrick in bricks[i].offsetsWithin(board.width, board.height)) {
-                computeSync(computationStartState, board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                computeSync(board, offsetBrick, remainingBricks, previousMoves, i > 0)
             }
         }
     }
 
     suspend fun computeSync(
-        computationStartState: Pair<Board, List<Brick>>,
         board: Board,
         offsetBrick: OffsetBrick,
         remainingBricks: List<Brick>,
@@ -127,15 +121,12 @@ class GameViewModel : ViewModel() {
 
         val (newBoard, cleared) = board.place(offsetBrick)
 
-        if (computationStartState != currentState) return
-
         val myMoves = previousMoves + listOf(offsetBrick)
         if (remainingBricks.isEmpty()) {
             // all blocks set, evaluate position
             val myScore = newBoard.evaluate()
             if (myScore > movesScore) {
                 mutex.withLock {
-                    if (computationStartState != currentState) return
                     if (myScore <= movesScore) return
                     moves = myMoves
                     movesScore = myScore
@@ -145,7 +136,82 @@ class GameViewModel : ViewModel() {
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
             // recursively set blocks
             computeSync(
-                computationStartState,
+                newBoard,
+                remainingBricks,
+                myMoves
+            )
+        }
+    }
+
+    /**
+     * forceClearBeforeLast:
+     * when there is no block removed by beginning with the latter blocks,
+     * this state could in most cases also be achieved by placing the first block first.
+     * Only exception: A cross can be cleared by placing the first block later.
+     * We are willing to accept this for a ~3 times speed increase.
+     */
+    private suspend fun computeParallelBit(
+        board: BitContext.BitBoard,
+        bricks: List<BitContext.BitBrick>,
+        previousMoves: List<BitContext.BitBoard>
+    ) {
+        val totalSteps = bricks.map { it.offsetsWithin().size }.sum()
+        var steps = 0
+        for (i in bricks.indices) {
+            val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
+            coroutineScope {
+                for (offsetBrick in bricks[i].offsetsWithin()) {
+                    launch {
+                        steps += 1
+                        progress.value = steps.toFloat() / totalSteps
+                        // Log.d("progress", "$i, ${offsetBrick.offset}, ${progress.value}")
+                        computeSyncBit(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                    }
+                }
+            }
+        }
+        progress.value = 1f
+    }
+
+    private suspend fun computeSyncBit(
+        board: BitContext.BitBoard,
+        bricks: List<BitContext.BitBrick>,
+        previousMoves: List<BitContext.BitBoard>,
+    ) {
+        for (i in bricks.indices) {
+            val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
+            for (offsetBrick in bricks[i].offsetsWithin()) {
+                computeSyncBit(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+            }
+        }
+    }
+
+    suspend fun computeSyncBit(
+        board: BitContext.BitBoard,
+        offsetBrick: BitContext.BitBoard,
+        remainingBricks: List<BitContext.BitBrick>,
+        previousMoves: List<BitContext.BitBoard>,
+        forceClearBeforeLast: Boolean
+    ) {
+        if (!board.canPlace(offsetBrick)) return
+
+        val (newBoard, cleared) = board.place(offsetBrick)
+
+        val myMoves = previousMoves + listOf(offsetBrick)
+        if (remainingBricks.isEmpty()) {
+            // all blocks set, evaluate position
+            val myScore = newBoard.evaluate()
+            if (myScore > movesScore) {
+                mutex.withLock {
+                    if (myScore <= movesScore) return
+                    moves = myMoves.map { it.toOffsetBrick() }
+                    movesScore = myScore
+                    nextMove.value = myMoves[0].toOffsetBrick()
+                }
+            }
+        } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
+            // recursively set blocks
+            computeSyncBit(
                 newBoard,
                 remainingBricks,
                 myMoves
@@ -165,9 +231,21 @@ class GameViewModel : ViewModel() {
                 moves = null
                 nextMove.value = null
                 movesScore = Float.NEGATIVE_INFINITY
-            }
-            withContext(Dispatchers.Default) {
-                computeParallel(computationStartState, computationStartState.first, bricks, listOf())
+                job?.join()
+                job = viewModelScope.launch {
+                    withContext(Dispatchers.Default) {
+                        if(game.value.board.width * game.value.board.height <= 64) {
+                            val context = BitContext(IntOffset(game.value.board.width, game.value.board.height))
+                            computeParallelBit(
+                                context.BitBoard(computationStartState.first),
+                                bricks.map { context.BitBrick(it) },
+                                listOf()
+                            )
+                        } else {
+                            computeParallel(computationStartState.first, bricks, listOf())
+                        }
+                    }
+                }
             }
         }
     }
@@ -175,6 +253,7 @@ class GameViewModel : ViewModel() {
     fun stopComputation() {
         viewModelScope.launch {
             mutex.withLock {
+                job?.cancel()
                 currentState = null
                 nextMove.value = null
                 progress.value = 1f
