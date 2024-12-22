@@ -4,7 +4,7 @@ import androidx.compose.ui.unit.IntOffset
 
 
 data class GameState(
-    var board: ColoredBoard = ColoredBoard(8, 8),
+    var board: ColoredBoard,
     var bricks: Array<ColoredBrick?> = Array(3) { randomBrick() },
     var score: Int = 0
 ) {

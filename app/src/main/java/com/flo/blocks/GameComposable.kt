@@ -7,14 +7,13 @@ import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.activity.BackEventCompat
-import androidx.activity.OnBackPressedCallback
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.draggable2D
 import androidx.compose.foundation.gestures.rememberDraggable2DState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Arrangement.HorizontalOrVertical
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,7 +44,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,7 +53,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
@@ -65,14 +62,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
-import androidx.core.graphics.ColorUtils
 import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 
 
 @Composable
@@ -138,18 +133,43 @@ fun Brick(brick: ColoredBrick, blockSize: Dp) {
 }
 
 @Composable
-fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
+fun computeLayout(board: ColoredBoard): Pair<Boolean, Int> {
     val configuration = (LocalContext.current as Activity).resources.configuration
     val width = configuration.screenWidthDp
     val height = configuration.screenHeightDp
     val vertical = height >= width
 
-    val game by gameViewModel.game.asStateFlow().collectAsState()
-    val boardSize = max(game.board.width, game.board.height)
+    val boardSize = max(board.width, board.height)
     val blockSize = min(
         max(width, height) / (boardSize + 12),
         min(width, height) / max(boardSize + 1, 11)
     )
+    return Pair(vertical, blockSize)
+}
+
+@Composable
+fun AlignInDirection(vertical: Boolean, arrangement: HorizontalOrVertical, content: @Composable () -> Unit) {
+    if (vertical) {
+        Column(
+            verticalArrangement = arrangement,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            content()
+        }
+    } else {
+        Row(
+            horizontalArrangement = arrangement,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boolean) -> Unit, openSettings: () -> Unit) {
+    val game by gameViewModel.game.asStateFlow().collectAsState()
+    val (vertical, blockSize) = computeLayout(game.board)
 
     val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
 
@@ -173,26 +193,6 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
         }
     }
     val selected by remember { derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false } }
-    var backProgress by remember { mutableFloatStateOf(0f) }
-
-    class MyOnBackPressedCallback : OnBackPressedCallback(lastGameState != null) {
-        override fun handleOnBackPressed() {
-            backProgress = 0f
-            isEnabled = gameViewModel.undo()
-        }
-
-        override fun handleOnBackProgressed(backEvent: BackEventCompat) {
-            super.handleOnBackProgressed(backEvent)
-            backProgress = backEvent.progress.pow(1f / 3)
-        }
-    }
-
-    val myOnBackPressedCallback by remember {
-        mutableStateOf(MyOnBackPressedCallback())
-    }
-
-    val activity = (LocalContext.current as MainActivity)
-    activity.onBackPressedDispatcher.addCallback(activity, myOnBackPressedCallback)
 
     @Composable
     fun Board(board: ColoredBoard, blockSize: Dp) {
@@ -202,27 +202,10 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
             for (y in 0 until board.height) {
                 Row {
                     for (x in 0 until board.width) {
-                        var color = if (
+                        val color = if (
                             suggestion?.getPosition(x, y) == true ||
                             (selected && hovering!!.getPosition(x, y))
-                        ) {
-                            Color.Gray
-                        } else {
-                            board[x, y].color
-                        }
-                        if (
-                            backProgress > 0 &&
-                            lastGameState?.board?.width == game.board.width &&
-                            lastGameState?.board?.height == game.board.height
-                        ) {
-                            color = Color(
-                                ColorUtils.blendARGB(
-                                    color.toArgb(),
-                                    lastGameState!!.board[x, y].color.toArgb(),
-                                    backProgress
-                                )
-                            )
-                        }
+                        ) Color.Gray else board[x, y].color
                         Block(color, blockSize) //{ Text("$x,$y") }
                     }
                 }
@@ -232,7 +215,7 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun Blocks(i: Int) {
+    fun Blocks(i: Int, brick: ColoredBrick?) {
         val density = LocalDensity.current.density
         val vibrate = vibrateCallback(LocalContext.current)
         Box(
@@ -265,36 +248,24 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
                                 if (selected) {
                                     val cleared = gameViewModel.placeBrick(i, hovering!!.offset)
                                     if (cleared > 0) vibrate()
-                                    myOnBackPressedCallback.isEnabled = gameViewModel.canUndo()
+                                    setBackEnabled(gameViewModel.canUndo())
                                 }
                                 offset = null
                                 blockPosition = null
                             }
                         }
                     )
-            }.size((5 * blockSize).dp)
+            }.size((5 * blockSize).dp),
+            contentAlignment = Alignment.Center
         ) {
-            if (backProgress > 0 && lastGameState != null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    lastGameState!!.bricks[i]?.let { Brick(it, blockSize.dp) }
-                }
-            }
             Box(
-                Modifier
-                    .alpha(1 - backProgress)
-                    .fillMaxSize()
-                    .background(if (backProgress > 0) MaterialTheme.colorScheme.background else Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier.onGloballyPositioned { coordinates ->
-                        if (offset?.first == i) {
-                            blockPosition = coordinates.positionInRoot()
-                        }
+                Modifier.onGloballyPositioned { coordinates ->
+                    if (offset?.first == i) {
+                        blockPosition = coordinates.positionInRoot()
                     }
-                ) {
-                    game.bricks[i]?.let { Brick(it, blockSize.dp) }
                 }
+            ) {
+                brick?.let { Brick(it, blockSize.dp) }
             }
         }
     }
@@ -311,7 +282,7 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
             when (result) {
                 SnackbarResult.ActionPerformed -> {
                     gameViewModel.newGame()
-                    myOnBackPressedCallback.isEnabled = false
+                    setBackEnabled(false)
                 }
 
                 SnackbarResult.Dismissed -> TODO()
@@ -327,7 +298,7 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AnimatedVisibility(visible = lastGameState != null) {
                     FloatingActionButton(onClick = {
-                        myOnBackPressedCallback.isEnabled = gameViewModel.undo()
+                        setBackEnabled(gameViewModel.undo())
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
@@ -369,50 +340,34 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
                 }
 
                 val spaced = Arrangement.spacedBy(blockSize.dp / 2)
-                if (vertical) {
-                    Column(
-                        verticalArrangement = spaced,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                val Content = @Composable { game: GameState ->
+                    AlignInDirection(vertical, spaced) {
                         Board(game.board, blockSize.dp)
-                        Row(
-                            Modifier
-                                .height((5 * blockSize).dp)
-                                .zIndex(if (offset?.first == 2) 0f else 1f),
-                            horizontalArrangement = spaced,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Blocks(0)
-                            Blocks(1)
-                        }
-                        Row(
-                            Modifier.height((5 * blockSize).dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Blocks(2)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(
+                                Modifier
+                                    .height((5 * blockSize).dp)
+                                    .zIndex(if (offset?.first == 2) 0f else 1f),
+                                horizontalArrangement = spaced,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Blocks(0, game.bricks[0])
+                                Blocks(1, game.bricks[1])
+                            }
+                            Row(
+                                Modifier.height((5 * blockSize).dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Blocks(2, game.bricks[2])
+                            }
                         }
                     }
-                } else {
-                    Row(
-                        horizontalArrangement = spaced,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Board(game.board, blockSize.dp)
-                        Column(
-                            Modifier
-                                .width((5 * blockSize).dp)
-                                .zIndex(if (offset?.first == 2) 0f else 1f),
-                            verticalArrangement = spaced,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Blocks(0)
-                            Blocks(1)
-                        }
-                        Column(
-                            Modifier.width((5 * blockSize).dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Blocks(2)
+                }
+                Box {
+                    Content(game)
+                    if (backProgress > 0 && lastGameState != null) {
+                        Box(Modifier.alpha(backProgress).background(MaterialTheme.colorScheme.background)) {
+                            Content(lastGameState!!)
                         }
                     }
                 }

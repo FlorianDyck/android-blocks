@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.flo.blocks.game.BitContext
 import com.flo.blocks.game.Board
 import com.flo.blocks.game.Brick
+import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ import java.util.Stack
 
 class GameViewModel : ViewModel() {
 
-    val game: MutableStateFlow<GameState> = MutableStateFlow(GameState())
+    val game: MutableStateFlow<GameState> = MutableStateFlow(GameState(ColoredBoard(8, 8)))
     val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
     val history: Stack<GameState> = Stack()
 
@@ -40,7 +41,7 @@ class GameViewModel : ViewModel() {
     }
 
     fun newGame() {
-        updateGameState(GameState())
+        updateGameState(GameState(ColoredBoard(game.value.board.width, game.value.board.height)))
     }
 
     fun canUndo(): Boolean = history.isNotEmpty()
