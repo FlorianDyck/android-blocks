@@ -146,9 +146,9 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
 
     val game by gameViewModel.game.asStateFlow().collectAsState()
     val boardSize = max(game.board.width, game.board.height)
-    val blockSize = .9f * min(
-        max(width, height) / (boardSize + 11),
-        min(width, height) / (boardSize)
+    val blockSize = min(
+        max(width, height) / (boardSize + 12),
+        min(width, height) / max(boardSize + 1, 11)
     )
 
     val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
@@ -210,7 +210,11 @@ fun Game(gameViewModel: GameViewModel, openSettings: () -> Unit) {
                         } else {
                             board[x, y].color
                         }
-                        if (backProgress > 0 && lastGameState != null) {
+                        if (
+                            backProgress > 0 &&
+                            lastGameState?.board?.width == game.board.width &&
+                            lastGameState?.board?.height == game.board.height
+                        ) {
                             color = Color(
                                 ColorUtils.blendARGB(
                                     color.toArgb(),
