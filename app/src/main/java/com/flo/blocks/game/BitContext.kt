@@ -63,26 +63,24 @@ class BitContext(val boardSize: IntOffset) {
         fun canPlace(brick: BitBrick): Boolean = placeablePositions(brick) != 0UL
         fun canPlace(offsetBrick: BitBoard): Boolean = board.and(offsetBrick.board) == 0UL
         fun place(offsetBrick: BitBoard): Pair<BitBoard, Int> {
-            var combination = board.or(offsetBrick.board)
+            var combination = board or offsetBrick.board
             var cleared = 0
 
-            var lines = 0UL
+            var toClear = 0UL
             for (y in 0 until boardSize.y) {
                 if (combination.and(line.shl(y * boardSize.x)) == line.shl(y * boardSize.x)) {
-                    lines = lines.or(1UL.shl(y * boardSize.x))
+                    toClear = toClear.or(line.shl(y * boardSize.x))
                     cleared += 1
                 }
             }
-
-            var columns = 0UL
             for (x in 0 until boardSize.x) {
                 if ((combination and (column shl x)) == (column shl x)) {
-                    columns = columns or (1UL shl x)
+                    toClear = toClear or (column shl x)
                     cleared += 1
                 }
             }
 
-            combination = combination.and((lines * line).or(columns * column).inv())
+            combination = combination.and(toClear.inv())
             return Pair(BitBoard(combination), cleared)
         }
 
