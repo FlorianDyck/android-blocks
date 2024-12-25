@@ -1,10 +1,15 @@
 package com.flo.blocks.game
 
+import android.util.Log
 import androidx.compose.ui.unit.IntOffset
+import java.util.logging.Logger
+import kotlin.Long
+import kotlin.time.Duration
+import kotlin.time.TimeSource
 
 
 data class Grades(val free: IntArray, val used: IntArray) {
-    override fun equals(other: Any?): Boolean {
+    override operator fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
@@ -85,29 +90,65 @@ class BitContext(val boardSize: IntOffset) {
         }
 
         private fun grades(): Grades {
-            val result = Grades(intArrayOf(0, 0, 0, 0, 0), intArrayOf(0, 0, 0, 0, 0))
+            // there are 10 numbers from 0 to 63 which are stored every 6 bits
+            // this is used over an array because it can be stored in a register
+            // and is not forcibly in memory (as access into an array would require)
+            var result = 0L;
             val left: ULong = board xor ((board shl 1) or column)
             val right: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
             val bottom: ULong = board xor ((board shl boardSize.x) or line)
-            val top: ULong =
-                board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
-            for (y in 0 until boardSize.y) {
-                for (x in 0 until boardSize.x) {
-                    var differentBlocksAround = 0
-                    val pos = 1UL shl boardSize.x * y + x
-                    if ((left and pos) != 0UL) differentBlocksAround++
-                    if ((right and pos) != 0UL) differentBlocksAround++
-                    if ((top and pos) != 0UL) differentBlocksAround++
-                    if ((bottom and pos) != 0UL) differentBlocksAround++
+            val top: ULong = board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
 
-                    if ((board and pos) != 0UL) {
-                        result.used[differentBlocksAround]++
-                    } else {
-                        result.free[differentBlocksAround]++
-                    }
-                }
+            val ALTERNATING_BITS = 0x55_55_55_55_55_55_55_55UL
+            // number of set bits in 2-bit groups among left, right and bottom
+            val sum3_0 = ((left shr 1) and ALTERNATING_BITS) + ((right shr 1) and ALTERNATING_BITS) + ((bottom shr 1) and ALTERNATING_BITS)
+            val sum3_1 = ( left        and ALTERNATING_BITS) + ( right        and ALTERNATING_BITS) + ( bottom        and ALTERNATING_BITS)
+
+            val ALTERNATING_BITS2 = 0x33_33_33_33_33_33_33_33UL
+            val EVERY_FOURTH_BIT = 0x11_11_11_11_11_11_11_11UL
+            // number of set bits in 4-bit groups among left, right, bottom and top,
+            // additionally increased by 5 if the position is set (to switch between used and free)
+            val numbersOfSetBits = arrayOf(
+                (((sum3_0 shr 2) and ALTERNATING_BITS2) + ((top shr 3) and EVERY_FOURTH_BIT) + 5UL * ((board shr 3) and EVERY_FOURTH_BIT)).toLong(),
+                (((sum3_1 shr 2) and ALTERNATING_BITS2) + ((top shr 2) and EVERY_FOURTH_BIT) + 5UL * ((board shr 2) and EVERY_FOURTH_BIT)).toLong(),
+                (( sum3_0        and ALTERNATING_BITS2) + ((top shr 1) and EVERY_FOURTH_BIT) + 5UL * ((board shr 1) and EVERY_FOURTH_BIT)).toLong(),
+                (( sum3_1        and ALTERNATING_BITS2) + ( top        and EVERY_FOURTH_BIT) + 5UL * ( board        and EVERY_FOURTH_BIT)).toLong(),
+            )
+            for(numbersOfSetBitsPart in numbersOfSetBits)
+            {
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 60) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 56) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 52) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 48) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 44) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 40) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 36) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 32) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 28) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 24) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 20) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 16) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 12) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr  8) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr  4) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart       ) and 0xFL).toInt())
             }
-            return result
+            return Grades(
+                intArrayOf( // free
+                    (( result        ).toInt()) and 0x3F,
+                    (((result) shr  6).toInt()) and 0x3F,
+                    (((result) shr 12).toInt()) and 0x3F,
+                    (((result) shr 18).toInt()) and 0x3F,
+                    (((result) shr 24).toInt()) and 0x3F,
+                ),
+                intArrayOf( // used
+                    (((result) shr 30).toInt()) and 0x3F,
+                    (((result) shr 36).toInt()) and 0x3F,
+                    (((result) shr 42).toInt()) and 0x3F,
+                    (((result) shr 48).toInt()) and 0x3F,
+                    (((result) shr 54).toInt()) and 0x3F,
+                )
+            )
         }
 
         private fun placeablePositions3X3(): Boolean {
