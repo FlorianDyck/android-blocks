@@ -237,7 +237,7 @@ class GameViewModel : ViewModel() {
                     withContext(Dispatchers.Default) {
                         if(game.value.board.width * game.value.board.height <= 64) {
                             val context = BitContext(IntOffset(game.value.board.width, game.value.board.height))
-                            computeParallelBit(
+                            computeSyncBit(
                                 context.BitBoard(computationStartState.first),
                                 bricks.map { context.BitBrick(it) },
                                 listOf()
@@ -245,6 +245,7 @@ class GameViewModel : ViewModel() {
                         } else {
                             computeParallel(computationStartState.first, bricks, listOf())
                         }
+                        Log.i("compute", "finished")
                     }
                 }
             }
