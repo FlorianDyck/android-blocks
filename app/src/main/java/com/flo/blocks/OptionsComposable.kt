@@ -2,6 +2,7 @@ package com.flo.blocks
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -74,17 +76,20 @@ fun SelectNumber(description: String, initialValue: Int, set: (Int) -> Unit) {
 fun SelectOption(
     description: String,
     value: Boolean,
+    enabled: Boolean = true,
     set: (Boolean) -> Unit
 ) {
     Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { set(!value) },
+        (if (enabled) Modifier.clickable { set(!value) } else Modifier).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val targetAlpha = if (enabled) 1f else .5f
+        val animatedAlpha by animateFloatAsState(targetAlpha, label = "alpha")
         Text(
             description,
-            Modifier.weight(1f),
+            Modifier
+                .alpha(animatedAlpha)
+                .weight(1f),
             color = MaterialTheme.colorScheme.onBackground,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
@@ -95,7 +100,7 @@ fun SelectOption(
                 .padding(8.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
-            Checkbox(value, { set(it) })
+            Checkbox(value, { set(it) }, enabled = enabled)
         }
     }
 }
@@ -111,7 +116,8 @@ fun <T> SelectPossibleValue(
         mutableStateOf(false)
     }
     Row(
-        Modifier.fillMaxWidth()
+        Modifier
+            .fillMaxWidth()
             .clickable { expanded = true },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -204,10 +210,60 @@ fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
     val game by computeViewModel.game.collectAsState()
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Gameplay", Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
+                var computeEnabled by remember {
+                    mutableStateOf(computeViewModel.computeEnabled)
+                }
+                SelectPossibleValue("Computation", computeEnabled, GameViewModel.ComputeEnabled.entries) {
+                    computeEnabled = it
+                }
+                var undoEnabled by remember {
+                    mutableStateOf(computeViewModel.undoEnabled)
+                }
+                SelectPossibleValue("Allow Undo", undoEnabled, GameViewModel.UndoEnabled.entries) {
+                    undoEnabled = it
+                }
+                var showBackIfEnabled by remember {
+                    mutableStateOf(computeViewModel.showUndoIfEnabled.value)
+                }
+                SelectOption(
+                    "Show Undo Button",
+                    showBackIfEnabled,
+                    undoEnabled != GameViewModel.UndoEnabled.Never
+                ) { showBackIfEnabled = it }
+
+                val save = {
+                    computeViewModel.computeEnabled = computeEnabled
+                    computeViewModel.undoEnabled = undoEnabled
+                    computeViewModel.showUndoIfEnabled.value = showBackIfEnabled
+                }
+                val anySettingChange by remember {
+                    derivedStateOf {
+                        computeViewModel.computeEnabled != computeEnabled ||
+                        computeViewModel.undoEnabled != undoEnabled ||
+                        computeViewModel.showUndoIfEnabled.value != showBackIfEnabled
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(close, Modifier.weight(1f)) {
+                        Text(text = "Cancel")
+                    }
+                    Button({
+                        save()
+                        close()
+                    }, Modifier.weight(1f), anySettingChange) {
+                        Text(text = "Save")
+                    }
+                }
+
+                Text("Board", Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
                 val width = remember { mutableIntStateOf(game.board.width) }
                 val height = remember { mutableIntStateOf(game.board.height) }
-                val anyChange by remember {
+                val anyBoardChange by remember {
                     derivedStateOf {
                         width.intValue != game.board.width || height.intValue != game.board.height
                     }
@@ -221,13 +277,14 @@ fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
                         Text(text = "Cancel")
                     }
                     Button({
+                        save()
                         computeViewModel.updateGameState(
                             GameState(
                                 ColoredBoard(width.intValue, height.intValue)
                             )
                         )
                         close()
-                    }, Modifier.weight(1f), anyChange) {
+                    }, Modifier.weight(1f), anyBoardChange) {
                         Text(text = "Apply to new Game")
                     }
                 }

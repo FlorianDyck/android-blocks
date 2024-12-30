@@ -296,14 +296,16 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boo
         },
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AnimatedVisibility(visible = lastGameState != null) {
+                val showUndo by gameViewModel.showUndo.collectAsState(false)
+                AnimatedVisibility(visible = showUndo) {
                     FloatingActionButton(onClick = {
                         setBackEnabled(gameViewModel.undo())
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
                 }
-                AnimatedVisibility(visible = suggestion == null) {
+                val showCompute by gameViewModel.showCompute.collectAsState()
+                AnimatedVisibility(visible = showCompute && suggestion == null) {
                     FloatingActionButton(
                         onClick = {
                             gameViewModel.startComputation(
@@ -366,7 +368,10 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boo
                 Box {
                     Content(game)
                     if (backProgress > 0 && lastGameState != null) {
-                        Box(Modifier.alpha(backProgress).background(MaterialTheme.colorScheme.background)) {
+                        Box(
+                            Modifier
+                                .alpha(backProgress)
+                                .background(MaterialTheme.colorScheme.background)) {
                             Content(lastGameState!!)
                         }
                     }

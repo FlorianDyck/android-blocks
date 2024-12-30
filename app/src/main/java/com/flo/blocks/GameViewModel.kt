@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,6 +23,36 @@ import java.util.Stack
 
 
 class GameViewModel : ViewModel() {
+
+    enum class ComputeEnabled {
+        Auto,
+        Button,
+        Hidden
+    }
+    enum class UndoEnabled {
+        Always,
+        UnlessNewBlocks,
+        Never
+    }
+
+    var computeEnabled = ComputeEnabled.Hidden
+        set(value) {
+            field = value
+            if (value == ComputeEnabled.Auto) {
+                startComputation(game.value.bricks.filterNotNull().map { it.brick })
+            }
+            showCompute.value = value == ComputeEnabled.Button
+        }
+    var undoEnabled = UndoEnabled.Always
+        set(value) {
+            field = value
+            canUndo.value = canUndo()
+        }
+
+    val showCompute = MutableStateFlow(false)
+    val canUndo = MutableStateFlow(false)
+    val showUndoIfEnabled = MutableStateFlow(true)
+    val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
     val game: MutableStateFlow<GameState> = MutableStateFlow(GameState(ColoredBoard(8, 8)))
     val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
@@ -33,6 +64,10 @@ class GameViewModel : ViewModel() {
         history.push(game.value)
         lastGameState.value = game.value
         game.value = newState
+        if(computeEnabled == ComputeEnabled.Auto) {
+            startComputation(game.value.bricks.filterNotNull().map { it.brick })
+        }
+        canUndo.value = canUndo()
     }
 
     fun placeBrick(index: Int, position: IntOffset): Int {
@@ -44,15 +79,25 @@ class GameViewModel : ViewModel() {
         updateGameState(GameState(ColoredBoard(game.value.board.width, game.value.board.height)))
     }
 
-    fun canUndo(): Boolean = history.isNotEmpty()
+    fun canUndo(): Boolean {
+        return history.isNotEmpty() && when(undoEnabled) {
+            UndoEnabled.Always -> true
+            UndoEnabled.UnlessNewBlocks -> game.value.bricks.any{ it == null }
+            UndoEnabled.Never -> false
+        }
+    }
 
     fun undo(): Boolean {
-        if (history.isNotEmpty()) {
-            this.game.value = history.pop()
-        }
-        lastGameState.value = if (history.isNotEmpty()) history.peek() else null
+        if (!canUndo()) return false
         stopComputation()
-        return canUndo()
+        lastGameState.value = game.value
+        game.value = history.pop()
+        val canStillUndo = canUndo()
+        canUndo.value = canStillUndo
+        if(computeEnabled == ComputeEnabled.Auto) {
+            startComputation(game.value.bricks.filterNotNull().map { it.brick })
+        }
+        return canStillUndo
     }
 
     /**
