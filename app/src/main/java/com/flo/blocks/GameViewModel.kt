@@ -90,8 +90,8 @@ class GameViewModel : ViewModel() {
     fun undo(): Boolean {
         if (!canUndo()) return false
         stopComputation()
-        lastGameState.value = game.value
         game.value = history.pop()
+        lastGameState.value = history.lastOrNull()
         val canStillUndo = canUndo()
         canUndo.value = canStillUndo
         if(computeEnabled == ComputeEnabled.Auto) {
