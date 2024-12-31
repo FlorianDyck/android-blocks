@@ -167,7 +167,7 @@ fun AlignInDirection(vertical: Boolean, arrangement: HorizontalOrVertical, conte
 }
 
 @Composable
-fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boolean) -> Unit, openSettings: () -> Unit) {
+fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> Unit) {
     val game by gameViewModel.game.asStateFlow().collectAsState()
     val (vertical, blockSize) = computeLayout(game.board)
 
@@ -248,7 +248,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boo
                                 if (selected) {
                                     val cleared = gameViewModel.placeBrick(i, hovering!!.offset)
                                     if (cleared > 0) vibrate()
-                                    setBackEnabled(gameViewModel.canUndo())
+                                    gameViewModel.canUndo()
                                 }
                                 offset = null
                                 blockPosition = null
@@ -282,7 +282,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boo
             when (result) {
                 SnackbarResult.ActionPerformed -> {
                     gameViewModel.newGame()
-                    setBackEnabled(false)
+                    gameViewModel.canUndo()
                 }
 
                 SnackbarResult.Dismissed -> TODO()
@@ -299,7 +299,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, setBackEnabled: (Boo
                 val showUndo by gameViewModel.showUndo.collectAsState(false)
                 AnimatedVisibility(visible = showUndo) {
                     FloatingActionButton(onClick = {
-                        setBackEnabled(gameViewModel.undo())
+                        gameViewModel.undo()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
