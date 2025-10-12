@@ -1,5 +1,6 @@
 package com.flo.blocks
 
+import SettingsRepository
 import android.os.Bundle
 import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
@@ -29,7 +30,7 @@ class MainActivity : ComponentActivity() {
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     @Suppress("UNCHECKED_CAST")
-                    return GameViewModel() as T
+                    return GameViewModel(SettingsRepository(application)) as T
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.flo.blocks
 
+import SettingsRepository
 import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,7 +24,7 @@ import kotlinx.coroutines.withContext
 import java.util.Stack
 
 
-class GameViewModel : ViewModel() {
+class GameViewModel(private val settingsRepository: SettingsRepository) : ViewModel() {
 
     enum class ComputeEnabled {
         Auto,
@@ -38,6 +40,7 @@ class GameViewModel : ViewModel() {
     var computeEnabled = ComputeEnabled.Hidden
         set(value) {
             field = value
+            viewModelScope.launch { settingsRepository.saveComputeEnabled(value) }
             if (value == ComputeEnabled.Auto) {
                 startComputation(game.value.bricks.filterNotNull().map { it.brick })
             }
@@ -46,12 +49,28 @@ class GameViewModel : ViewModel() {
     var undoEnabled = UndoEnabled.Always
         set(value) {
             field = value
+            viewModelScope.launch { settingsRepository.saveUndoEnabled(value) }
             canUndo.value = canUndo()
         }
 
+    init {
+        viewModelScope.launch {
+            computeEnabled = settingsRepository.computeEnabledFlow.first()
+            undoEnabled = settingsRepository.undoEnabledFlow.first()
+            showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
+        }
+    }
+
     val showCompute = MutableStateFlow(false)
     val canUndo = MutableStateFlow(false)
-    val showUndoIfEnabled = MutableStateFlow(true)
+    val showUndoIfEnabled = MutableStateFlow(true).also { flow ->
+        // Save the value whenever it changes
+        viewModelScope.launch {
+            flow.collect { value ->
+                settingsRepository.saveShowUndoIfEnabled(value)
+            }
+        }
+    }
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
     val game: MutableStateFlow<GameState> = MutableStateFlow(GameState(ColoredBoard(8, 8)))
