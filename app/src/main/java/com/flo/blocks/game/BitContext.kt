@@ -116,6 +116,12 @@ class BitContext(val boardSize: IntOffset) {
             )
             for(numbersOfSetBitsPart in numbersOfSetBits)
             {
+                // numbersOfSetBitsPart contains in each 4-bit group a number for a pixel on the board,
+                // of how many adjacent pixels are different
+                // the right shift and binary and with 1111 (0xF as Long, 0xFL) gets this number
+                // this is multiplied by six to index into result, which is built of 10 6-bit numbers
+                //
+                // unrolled for efficiency
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 60) and 0xFL).toInt())
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 56) and 0xFL).toInt())
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 52) and 0xFL).toInt())
