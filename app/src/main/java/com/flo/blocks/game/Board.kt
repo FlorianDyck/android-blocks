@@ -40,8 +40,7 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
         return result
     }
 
-    fun evaluate(): Float {
-        val freeBlocks = board.count { !it }
+    internal fun grades(): Triple<IntArray, IntArray, Int> {
         val blockGrades = IntArray(5)
         val freedomGrades = IntArray(5)
         val borderLength = board.mapIndexed { index, color ->
@@ -54,15 +53,31 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
                 result
             }
         }.sum()
-        var score =
-            1f * (3 * freeBlocks - 2 * borderLength - freedomGrades[4] * 20 - freedomGrades[3] * 2 - blockGrades[4] * 5 - blockGrades[3])
+        return Triple(blockGrades, freedomGrades, borderLength)
+    }
+
+    fun evaluate(): Float {
+        val freeBlocks = board.count { !it }
+        val (blockGrades, freedomGrades, borderLength) = grades()
 //        if (score > movesScore) {
 //            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
 //        }
-        if (canPlace(rect(0, 0, 2, 2))) score += 10
-        if (canPlace(rect(0, 0, 4, 0))) score += 5
-        if (canPlace(rect(0, 0, 0, 4))) score += 5
-        return score
+        var score = 0
+        val grades = grades()
+        score += freedomGrades[0] * 3
+        score += freedomGrades[1] * 2
+        score += freedomGrades[2] * 1
+        score += freedomGrades[3] * -2
+        score += freedomGrades[4] * -21
+//            score += blockGrades[0] * 0
+//            score += blockGrades[1] * 0
+//            score += blockGrades[2] * 0
+        score += blockGrades[3] * -1
+        score += blockGrades[4] * -5
+        if (canPlace(rect(0, 0, 2, 2))) score += 20
+        if (canPlace(rect(0, 0, 4, 0))) score += 10
+        if (canPlace(rect(0, 0, 0, 4))) score += 10
+        return score.toFloat()
     }
 
     private val rowIndices = 0 until width

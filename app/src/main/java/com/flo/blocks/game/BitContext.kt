@@ -1,11 +1,6 @@
 package com.flo.blocks.game
 
-import android.util.Log
 import androidx.compose.ui.unit.IntOffset
-import java.util.logging.Logger
-import kotlin.Long
-import kotlin.time.Duration
-import kotlin.time.TimeSource
 
 
 data class Grades(val free: IntArray, val used: IntArray) {
@@ -89,10 +84,46 @@ class BitContext(val boardSize: IntOffset) {
             return Pair(BitBoard(combination), cleared)
         }
 
-        private fun grades(): Grades {
-            // there are 10 numbers from 0 to 63 which are stored every 6 bits
-            // this is used over an array because it can be stored in a register
-            // and is not forcibly in memory (as access into an array would require)
+        internal fun grades(): Grades {
+            // check for each direction if there the board changes in that direction
+            // the shift is the board in that direction,
+            // the additional column/ line treats blocks off the board as ones
+            val i1 /* left   */: ULong = board xor ((board shl 1) or column)
+            val i2 /* right  */: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
+            val i3 /* bottom */: ULong = board xor ((board shl boardSize.x) or line)
+            val i4 /* top    */: ULong = board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
+
+            // summing up how many directions are differing in b3,b2,b1 as 3-bit number
+            val b3 = i1 and i2 and i3 and i4
+            val b2 = b3.inv() and ((i1 and (i2 or i3 or i4)) or (i2 and (i3 or i4)) or (i3 and i4))
+            val b1 = i1 xor i2 xor i3 xor i4
+
+            // storing how many bits are set into different variables
+            val diff4 = b3
+            val diff3 = b2       and b1
+            val diff2 = b2       and b1.inv()
+            val diff1 = b2.inv() and b1
+            val diff0 = b3.inv() and b2.inv() and b1.inv()
+
+            return Grades(
+                intArrayOf( // free
+                    (diff0 and board.inv()).countOneBits(),
+                    (diff1 and board.inv()).countOneBits(),
+                    (diff2 and board.inv()).countOneBits(),
+                    (diff3 and board.inv()).countOneBits(),
+                    (diff4 and board.inv()).countOneBits(),
+                ),
+                intArrayOf( // used
+                    (diff0 and board).countOneBits(),
+                    (diff1 and board).countOneBits(),
+                    (diff2 and board).countOneBits(),
+                    (diff3 and board).countOneBits(),
+                    (diff4 and board).countOneBits(),
+                )
+            )
+        }
+
+        internal fun gradesSlow(): Grades {
             var result = 0L;
             val left: ULong = board xor ((board shl 1) or column)
             val right: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
@@ -209,11 +240,14 @@ class BitContext(val boardSize: IntOffset) {
             var height = 1
             while ((unShiftedBits and (line shl (height * boardSize.x))) != 0UL) height++
 
-            return OffsetBrick(IntOffset(startX, startY), Brick(width, height, BooleanArray(width * height) {
-                val x = it % width
-                val y = it / width
-                ((unShiftedBits shr (x + y * boardSize.x)) and 1UL) != 0UL
-            }))
+            return OffsetBrick(
+                IntOffset(startX, startY),
+                Brick(width, height, BooleanArray(width * height) {
+                    val x = it % width
+                    val y = it / width
+                    ((unShiftedBits shr (x + y * boardSize.x)) and 1UL) != 0UL
+                })
+            )
         }
     }
 
