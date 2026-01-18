@@ -278,6 +278,7 @@ fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
                     }
                     Button({
                         save()
+                        computeViewModel.saveBoardSize(width.intValue, height.intValue)
                         computeViewModel.updateGameState(
                             GameState(
                                 ColoredBoard(width.intValue, height.intValue)

@@ -1,6 +1,6 @@
 package com.flo.blocks
 
-import SettingsRepository
+import com.flo.blocks.data.SettingsRepository
 import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
@@ -58,6 +58,10 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
             computeEnabled = settingsRepository.computeEnabledFlow.first()
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
+
+            val width = settingsRepository.boardWidthFlow.first()
+            val height = settingsRepository.boardHeightFlow.first()
+            game.value = GameState(ColoredBoard(width, height))
         }
     }
 
@@ -117,6 +121,12 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         return canStillUndo
+    }
+
+    fun saveBoardSize(width: Int, height: Int) {
+        viewModelScope.launch {
+            settingsRepository.saveBoardSize(width, height)
+        }
     }
 
     /**
