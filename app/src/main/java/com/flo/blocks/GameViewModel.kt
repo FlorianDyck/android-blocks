@@ -25,6 +25,7 @@ import java.util.Stack
 
 
 import com.flo.blocks.data.GameRepository
+import kotlinx.coroutines.flow.drop
 
 class GameViewModel(
     private val settingsRepository: SettingsRepository,
@@ -82,17 +83,17 @@ class GameViewModel(
     val showCompute = MutableStateFlow(false)
     val canUndo = MutableStateFlow(false)
     val showUndoIfEnabled = MutableStateFlow(true).also { flow ->
-        // Save the value whenever it changes
+        // Save the value whenever it changes (skip initial emission)
         viewModelScope.launch {
-            flow.collect { value ->
+            flow.drop(1).collect { value ->
                 settingsRepository.saveShowUndoIfEnabled(value)
             }
         }
     }
     val showNewGameButton = MutableStateFlow(false).also { flow ->
-        // Save the value whenever it changes
+        // Save the value whenever it changes (skip initial emission)
         viewModelScope.launch {
-            flow.collect { value ->
+            flow.drop(1).collect { value ->
                 settingsRepository.saveShowNewGameButton(value)
             }
         }

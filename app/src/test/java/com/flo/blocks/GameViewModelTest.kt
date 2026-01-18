@@ -39,6 +39,7 @@ class GameViewModelTest {
         whenever(settingsRepository.computeEnabledFlow).thenReturn(flowOf(ComputeEnabled.Hidden))
         whenever(settingsRepository.undoEnabledFlow).thenReturn(flowOf(UndoEnabled.Always))
         whenever(settingsRepository.showUndoIfEnabledFlow).thenReturn(flowOf(true))
+        whenever(settingsRepository.showNewGameButtonFlow).thenReturn(flowOf(false))
         whenever(settingsRepository.boardWidthFlow).thenReturn(flowOf(8))
         whenever(settingsRepository.boardHeightFlow).thenReturn(flowOf(8))
     }
