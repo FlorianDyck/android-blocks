@@ -144,6 +144,10 @@ class GameViewModel(
             gameRepository.newGame()
             gameRepository.saveGameState(newState, gameStateIndex)
         }
+
+        if(computeEnabled == ComputeEnabled.Auto) {
+            startComputation(game.value.bricks.filterNotNull().map { it.brick })
+        }
         canUndo.value = canUndo()
     }
 
