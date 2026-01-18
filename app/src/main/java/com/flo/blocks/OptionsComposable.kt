@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,7 +41,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.flo.blocks.game.ColoredBoard
-import com.flo.blocks.game.GameState
 
 @Composable
 fun SelectNumber(description: String, initialValue: Int, set: (Int) -> Unit) {
@@ -206,8 +206,54 @@ fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntS
 }
 
 @Composable
+fun NewGameOptions(
+    currentBoard: ColoredBoard,
+    onCancel: () -> Unit,
+    onConfirm: (Int, Int) -> Unit
+) {
+    Dialog(onDismissRequest = onCancel) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "New Game Options",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                val width = remember { mutableIntStateOf(currentBoard.width) }
+                val height = remember { mutableIntStateOf(currentBoard.height) }
+                
+                SizeOptions(currentBoard, width, height)
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(width.intValue, height.intValue) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Start Game")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
-    val game by computeViewModel.game.collectAsState()
+
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -232,21 +278,31 @@ fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
                     showBackIfEnabled,
                     undoEnabled != GameViewModel.UndoEnabled.Never
                 ) { showBackIfEnabled = it }
+                var showNewGameButton by remember {
+                    mutableStateOf(computeViewModel.showNewGameButton.value)
+                }
+                SelectOption(
+                    "Show New Game Button",
+                    showNewGameButton
+                ) { showNewGameButton = it }
 
                 val save = {
                     computeViewModel.computeEnabled = computeEnabled
                     computeViewModel.undoEnabled = undoEnabled
                     computeViewModel.showUndoIfEnabled.value = showBackIfEnabled
+                    computeViewModel.showNewGameButton.value = showNewGameButton
                 }
                 val anySettingChange by remember {
                     derivedStateOf {
                         computeViewModel.computeEnabled != computeEnabled ||
                         computeViewModel.undoEnabled != undoEnabled ||
-                        computeViewModel.showUndoIfEnabled.value != showBackIfEnabled
+                        computeViewModel.showUndoIfEnabled.value != showBackIfEnabled ||
+                        computeViewModel.showNewGameButton.value != showNewGameButton
                     }
                 }
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(close, Modifier.weight(1f)) {
@@ -257,36 +313,6 @@ fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
                         close()
                     }, Modifier.weight(1f), anySettingChange) {
                         Text(text = "Save")
-                    }
-                }
-
-                Text("Board", Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
-                val width = remember { mutableIntStateOf(game.board.width) }
-                val height = remember { mutableIntStateOf(game.board.height) }
-                val anyBoardChange by remember {
-                    derivedStateOf {
-                        width.intValue != game.board.width || height.intValue != game.board.height
-                    }
-                }
-                SizeOptions(game.board, width, height)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(close, Modifier.weight(1f)) {
-                        Text(text = "Cancel")
-                    }
-                    Button({
-                        save()
-                        computeViewModel.saveBoardSize(width.intValue, height.intValue)
-                        computeViewModel.updateGameState(
-                            GameState(
-                                ColoredBoard(width.intValue, height.intValue)
-                            )
-                        )
-                        close()
-                    }, Modifier.weight(1f), anyBoardChange) {
-                        Text(text = "Apply to new Game")
                     }
                 }
             }

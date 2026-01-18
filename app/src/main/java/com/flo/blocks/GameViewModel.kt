@@ -75,6 +75,7 @@ class GameViewModel(
             computeEnabled = settingsRepository.computeEnabledFlow.first()
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
+            showNewGameButton.value = settingsRepository.showNewGameButtonFlow.first()
         }
     }
 
@@ -85,6 +86,14 @@ class GameViewModel(
         viewModelScope.launch {
             flow.collect { value ->
                 settingsRepository.saveShowUndoIfEnabled(value)
+            }
+        }
+    }
+    val showNewGameButton = MutableStateFlow(false).also { flow ->
+        // Save the value whenever it changes
+        viewModelScope.launch {
+            flow.collect { value ->
+                settingsRepository.saveShowNewGameButton(value)
             }
         }
     }
@@ -121,7 +130,11 @@ class GameViewModel(
     }
 
     fun newGame() {
-        val newState = GameState(ColoredBoard(game.value.board.width, game.value.board.height))
+        newGame(game.value.board.width, game.value.board.height)
+    }
+
+    fun newGame(width: Int, height: Int) {
+        val newState = GameState(ColoredBoard(width, height))
         stopComputation()
         history.clear()
         lastGameState.value = null
@@ -198,7 +211,7 @@ class GameViewModel(
         bricks: List<Brick>,
         previousMoves: List<OffsetBrick>
     ) {
-        val totalSteps = bricks.map { it.offsetsWithin(board.width, board.height).size }.sum()
+        val totalSteps = bricks.sumOf { it.offsetsWithin(board.width, board.height).size }
         var steps = 0
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
@@ -274,7 +287,7 @@ class GameViewModel(
         bricks: List<BitContext.BitBrick>,
         previousMoves: List<BitContext.BitBoard>
     ) {
-        val totalSteps = bricks.map { it.offsetsWithin().size }.sum()
+        val totalSteps = bricks.sumOf { it.offsetsWithin().size }
         var steps = 0
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)

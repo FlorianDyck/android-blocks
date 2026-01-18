@@ -27,20 +27,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -270,30 +267,23 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
         }
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
 
-    if (lost) {
-        LaunchedEffect(key1 = "lost") {
-            val result = snackbarHostState.showSnackbar(
-                "You lost",
-                actionLabel = "play again",
-                duration = SnackbarDuration.Indefinite
-            )
-            when (result) {
-                SnackbarResult.ActionPerformed -> {
-                    gameViewModel.newGame()
-                    gameViewModel.canUndo()
-                }
 
-                SnackbarResult.Dismissed -> TODO()
+    val showNewGameOptions = remember { mutableStateOf(false) }
+
+    if (showNewGameOptions.value) {
+        NewGameOptions(
+            game.board,
+            onCancel = { showNewGameOptions.value = false },
+            onConfirm = { width, height ->
+                gameViewModel.saveBoardSize(width, height)
+                gameViewModel.newGame(width, height)
+                showNewGameOptions.value = false
             }
-        }
+        )
     }
 
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
         floatingActionButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val showUndo by gameViewModel.showUndo.collectAsState(false)
@@ -316,6 +306,12 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         Icon(Icons.Filled.Search, "hint")
                     }
                 }
+                val showNewGameButton by gameViewModel.showNewGameButton.collectAsState()
+                AnimatedVisibility(visible = showNewGameButton) {
+                    FloatingActionButton(onClick = { showNewGameOptions.value = true }) {
+                        Icon(Icons.Filled.Add, "new game")
+                    }
+                }
                 FloatingActionButton(onClick = openSettings) {
                     Icon(Icons.Filled.Settings, "settings")
                 }
@@ -330,9 +326,6 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-//                Text(text = "Score: $score, Computing: $computation", style = MaterialTheme.typography.titleMedium)
-//                Text("BoardOffset $boardPosition, BlockOffset $blockPosition")
-//                Text(text = "backProgress: $backProgress")
                 Text(text = "Score: ${game.score}", style = MaterialTheme.typography.titleMedium)
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
@@ -373,6 +366,49 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                                 .alpha(backProgress)
                                 .background(MaterialTheme.colorScheme.background)) {
                             Content(lastGameState!!)
+                        }
+                    }
+                }
+            }
+            if (lost) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .alpha(0.5f)
+                        .background(MaterialTheme.colorScheme.background)
+                )
+            }
+            if (lost) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(10f)
+                ) {
+                    Text(
+                        text = "Game Over",
+                        style = MaterialTheme.typography.displayMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Score: ${game.score}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(onClick = {
+                            gameViewModel.newGame()
+                            gameViewModel.canUndo()
+                        }) {
+                            Text("Play Again")
+                        }
+                        Button(onClick = { showNewGameOptions.value = true }) {
+                            Text("Customize")
                         }
                     }
                 }

@@ -19,12 +19,14 @@ interface SettingsRepository {
     val computeEnabledFlow: Flow<ComputeEnabled>
     val undoEnabledFlow: Flow<UndoEnabled>
     val showUndoIfEnabledFlow: Flow<Boolean>
+    val showNewGameButtonFlow: Flow<Boolean>
     val boardWidthFlow: Flow<Int>
     val boardHeightFlow: Flow<Int>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
     suspend fun saveShowUndoIfEnabled(showUndo: Boolean)
+    suspend fun saveShowNewGameButton(show: Boolean)
     suspend fun saveBoardSize(width: Int, height: Int)
 }
 
@@ -34,6 +36,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val COMPUTE_ENABLED = stringPreferencesKey("compute_enabled")
         val UNDO_ENABLED = stringPreferencesKey("undo_enabled")
         val SHOW_UNDO_IF_ENABLED = booleanPreferencesKey("show_undo_if_enabled")
+        val SHOW_NEW_GAME_BUTTON = booleanPreferencesKey("show_new_game_button")
         val BOARD_WIDTH = intPreferencesKey("board_width")
         val BOARD_HEIGHT = intPreferencesKey("board_height")
     }
@@ -55,6 +58,11 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override val showUndoIfEnabledFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[PreferencesKeys.SHOW_UNDO_IF_ENABLED] ?: true // Default to true
+        }
+
+    override val showNewGameButtonFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[PreferencesKeys.SHOW_NEW_GAME_BUTTON] ?: false // Default to false
         }
 
     override val boardWidthFlow: Flow<Int> = context.dataStore.data
@@ -82,6 +90,12 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override suspend fun saveShowUndoIfEnabled(showUndo: Boolean) {
         context.dataStore.edit { settings ->
             settings[PreferencesKeys.SHOW_UNDO_IF_ENABLED] = showUndo
+        }
+    }
+
+    override suspend fun saveShowNewGameButton(show: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[PreferencesKeys.SHOW_NEW_GAME_BUTTON] = show
         }
     }
 
