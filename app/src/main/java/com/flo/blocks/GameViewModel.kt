@@ -24,7 +24,12 @@ import kotlinx.coroutines.withContext
 import java.util.Stack
 
 
-class GameViewModel(private val settingsRepository: SettingsRepository) : ViewModel() {
+import com.flo.blocks.data.GameRepository
+
+class GameViewModel(
+    private val settingsRepository: SettingsRepository,
+    private val gameRepository: GameRepository
+) : ViewModel() {
 
     enum class ComputeEnabled {
         Auto,
@@ -55,13 +60,21 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
 
     init {
         viewModelScope.launch {
+            val width = settingsRepository.boardWidthFlow.first()
+            val height = settingsRepository.boardHeightFlow.first()
+            gameRepository.initialize()
+            val (latestState, index) = gameRepository.getLatestState() ?: Pair(GameState(ColoredBoard(width, height)), 0)
+            game.value = latestState
+            gameStateIndex = index
+            
+            val fullHistory = gameRepository.getHistory()
+            if (fullHistory.isNotEmpty()) {
+                history.addAll(fullHistory.dropLast(1))
+            }
+            
             computeEnabled = settingsRepository.computeEnabledFlow.first()
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
-
-            val width = settingsRepository.boardWidthFlow.first()
-            val height = settingsRepository.boardHeightFlow.first()
-            game.value = GameState(ColoredBoard(width, height))
         }
     }
 
@@ -81,12 +94,21 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
     val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
     val history: Stack<GameState> = Stack()
 
+    private var gameStateIndex = 0
+
     fun updateGameState(newState: GameState) {
         stopComputation()
 
-        history.push(game.value)
-        lastGameState.value = game.value
+        val oldState = game.value
+        history.push(oldState)
+        lastGameState.value = oldState
         game.value = newState
+        gameStateIndex++
+        
+        viewModelScope.launch {
+            gameRepository.saveGameState(newState, gameStateIndex)
+        }
+
         if(computeEnabled == ComputeEnabled.Auto) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
@@ -95,11 +117,21 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
 
     fun placeBrick(index: Int, position: IntOffset): Int {
         updateGameState(game.value.place(index, position))
-        return game.value.score - history.peek().score
+        return game.value.score - (history.peek()?.score ?: 0)
     }
 
     fun newGame() {
-        updateGameState(GameState(ColoredBoard(game.value.board.width, game.value.board.height)))
+        val newState = GameState(ColoredBoard(game.value.board.width, game.value.board.height))
+        stopComputation()
+        history.clear()
+        lastGameState.value = null
+        game.value = newState
+        gameStateIndex = 0 // Reset index for new game
+        viewModelScope.launch {
+            gameRepository.newGame()
+            gameRepository.saveGameState(newState, gameStateIndex)
+        }
+        canUndo.value = canUndo()
     }
 
     fun canUndo(): Boolean {
@@ -115,6 +147,18 @@ class GameViewModel(private val settingsRepository: SettingsRepository) : ViewMo
         stopComputation()
         game.value = history.pop()
         lastGameState.value = history.lastOrNull()
+        gameStateIndex--
+        
+        viewModelScope.launch {
+            // We just need to ensure the DB knows current state is now previous index 
+            // In our append-only logic, we might not need to do anything if we rely on index, 
+            // but effectively we are "restoring" an old state.
+            // If we want to persist the 'undo' action, we should probably delete the 'future' state 
+            // which the repository saveGameState does (deleteStatesAfter).
+            // So re-saving the popped state at the new index ensures consistency.
+            gameRepository.saveGameState(game.value, gameStateIndex)
+        }
+        
         val canStillUndo = canUndo()
         canUndo.value = canStillUndo
         if(computeEnabled == ComputeEnabled.Auto) {

@@ -22,31 +22,43 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.flo.blocks.ui.theme.BlocksTheme
 import kotlin.math.pow
+import androidx.room.Room
+import com.flo.blocks.data.AppDatabase
+import com.flo.blocks.data.GameRepository
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
-
-
-    private val computeViewModel by viewModels<GameViewModel>(
-        factoryProducer = {
-            object : ViewModelProvider.Factory {
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    @Suppress("UNCHECKED_CAST")
-                    return GameViewModel(DataStoreSettingsRepository(application)) as T
-                }
-            }
-        }
-    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val db = Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java, "game-database"
+        ).build()
+
         setContent {
+            val context = LocalContext.current
+            val settingsRepository = DataStoreSettingsRepository(context)
+            val gameRepository = GameRepository(db.gameDao())
+
+            val gameViewModel: GameViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                        @Suppress("UNCHECKED_CAST")
+                        return GameViewModel(settingsRepository, gameRepository) as T
+                    }
+                }
+            )
+
             var backProgress by remember { mutableFloatStateOf(0f) }
 
-            class MyOnBackPressedCallback : OnBackPressedCallback(computeViewModel.canUndo()) {
+            class MyOnBackPressedCallback : OnBackPressedCallback(gameViewModel.canUndo()) {
                 override fun handleOnBackPressed() {
                     backProgress = 0f
-                    isEnabled = computeViewModel.undo()
+                    isEnabled = gameViewModel.undo()
                 }
 
                 override fun handleOnBackProgressed(backEvent: BackEventCompat) {
@@ -62,13 +74,13 @@ class MainActivity : ComponentActivity() {
                 }
                 NavHost(navController = navController, startDestination = "game") {
                     composable("game") {
-                        val canUndo by computeViewModel.canUndo.collectAsState()
+                        val canUndo by gameViewModel.canUndo.collectAsState()
                         myOnBackPressedCallback.isEnabled = canUndo
-                        Game(computeViewModel, backProgress) { navController.navigate("settings") }
+                        Game(gameViewModel, backProgress) { navController.navigate("settings") }
                     }
                     composable("settings") {
                         myOnBackPressedCallback.isEnabled = false
-                        Options(computeViewModel) {
+                        Options(gameViewModel) {
                             if (navController.currentBackStackEntry != null) navController.popBackStack()
                         }
                     }
