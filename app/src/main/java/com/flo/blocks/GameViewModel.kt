@@ -14,7 +14,9 @@ import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -100,6 +102,9 @@ class GameViewModel(
     }
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
+    private val _achievementEvents = MutableSharedFlow<String>()
+    val achievementEvents = _achievementEvents.asSharedFlow()
+
     val game: MutableStateFlow<GameState> = MutableStateFlow(GameState(ColoredBoard(8, 8)))
     val lastGameState: MutableStateFlow<GameState?> = MutableStateFlow(null)
     val history: Stack<GameState> = Stack()
@@ -126,8 +131,23 @@ class GameViewModel(
     }
 
     fun placeBrick(index: Int, position: IntOffset): Int {
+        val brick = game.value.bricks[index]?.brick ?: return 0
+        val oldScore = game.value.score
         updateGameState(game.value.place(index, position))
-        return game.value.score - (history.peek()?.score ?: 0)
+        val cleared = game.value.score - oldScore
+
+        if (cleared > 1) {
+            viewModelScope.launch {
+                val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
+                if (cleared > currentRecord) {
+                    gameRepository.updateBlockAchievement(brick, cleared)
+                    _achievementEvents.emit("New Record! $cleared lines cleared!")
+                } else {
+                    _achievementEvents.emit("Well done! $cleared lines cleared!")
+                }
+            }
+        }
+        return cleared
     }
 
     fun newGame() {

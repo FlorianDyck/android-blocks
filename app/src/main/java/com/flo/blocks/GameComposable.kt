@@ -38,12 +38,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -63,6 +65,7 @@ import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
 import kotlin.math.min
 
@@ -173,6 +176,16 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val suggestion by gameViewModel.nextMove.asStateFlow().collectAsState()
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
+
+    var achievementMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        gameViewModel.achievementEvents.collectLatest { message ->
+            achievementMessage = message
+            delay(3000)
+            achievementMessage = null
+        }
+    }
 
     val lost = game.lost()
 
@@ -410,6 +423,29 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         Button(onClick = { showNewGameOptions.value = true }) {
                             Text("Customize")
                         }
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = achievementMessage != null,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 100.dp)
+                    .zIndex(20f)
+            ) {
+                achievementMessage?.let {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
             }

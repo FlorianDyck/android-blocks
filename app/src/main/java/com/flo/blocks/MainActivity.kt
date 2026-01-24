@@ -37,12 +37,13 @@ class MainActivity : ComponentActivity() {
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "game-database"
-        ).build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
 
         setContent {
             val context = LocalContext.current
             val settingsRepository = DataStoreSettingsRepository(context)
-            val gameRepository = GameRepository(db.gameDao())
+            val gameRepository = GameRepository(db.gameDao(), db.blockAchievementDao())
 
             val gameViewModel: GameViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {

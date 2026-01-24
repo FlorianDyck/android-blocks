@@ -1,10 +1,14 @@
 package com.flo.blocks.data
 
+import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-open class GameRepository(private val gameDao: GameDao) {
+open class GameRepository(
+    private val gameDao: GameDao,
+    private val blockAchievementDao: BlockAchievementDao
+) {
 
     private var currentGameId: Int? = null
 
@@ -42,6 +46,18 @@ open class GameRepository(private val gameDao: GameDao) {
     open suspend fun newGame() {
         withContext(Dispatchers.IO) {
             currentGameId = gameDao.insertGame(Game()).toInt()
+        }
+    }
+
+    open suspend fun getBlockAchievement(brick: Brick): BlockAchievement? {
+        return withContext(Dispatchers.IO) {
+            blockAchievementDao.getAchievement(brick)
+        }
+    }
+
+    open suspend fun updateBlockAchievement(brick: Brick, lines: Int) {
+        withContext(Dispatchers.IO) {
+            blockAchievementDao.upsertAchievement(BlockAchievement(brick, lines))
         }
     }
 }

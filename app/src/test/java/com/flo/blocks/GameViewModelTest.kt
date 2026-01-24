@@ -44,12 +44,19 @@ class GameViewModelTest {
         whenever(settingsRepository.boardHeightFlow).thenReturn(flowOf(8))
     }
 
-    class FakeGameRepository : GameRepository(mock()) {
+    class FakeGameRepository : GameRepository(mock(), mock()) {
+        private val achievements = mutableMapOf<com.flo.blocks.game.Brick, Int>()
         override suspend fun initialize() {}
         override suspend fun getLatestState(): Pair<com.flo.blocks.game.GameState, Int>? = null
         override suspend fun getHistory(): List<com.flo.blocks.game.GameState> = emptyList()
         override suspend fun saveGameState(state: com.flo.blocks.game.GameState, index: Int) {}
         override suspend fun newGame() {}
+        override suspend fun getBlockAchievement(brick: com.flo.blocks.game.Brick): com.flo.blocks.data.BlockAchievement? {
+            return achievements[brick]?.let { com.flo.blocks.data.BlockAchievement(brick, it) }
+        }
+        override suspend fun updateBlockAchievement(brick: com.flo.blocks.game.Brick, lines: Int) {
+            achievements[brick] = lines
+        }
     }
 
     @After
@@ -78,5 +85,48 @@ class GameViewModelTest {
         advanceUntilIdle()
 
         verify(settingsRepository).saveBoardSize(12, 12)
+    }
+
+    @Test
+    fun `placeBrick triggers achievement message on multi-line clear`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<String>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // Setup a state where placing a brick clears 2 lines
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        // Fill first two lines except for (0,0) and (0,1)
+        for (y in 0..1) {
+            for (x in 1..7) {
+                board[x, y] = com.flo.blocks.game.BlockColor.BLUE
+            }
+        }
+        
+        val brick = com.flo.blocks.game.rect(0, 0, 0, 1) // 1x2 vertical brick
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        
+        // Place the brick at (0,0) to clear 2 lines
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertEquals("New Record! 2 lines cleared!", events[0])
+        
+        // Place again (setup same state)
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+        
+        // Should be "Well done" now as 2 is not > 2
+        assertEquals(2, events.size)
+        assertEquals("Well done! 2 lines cleared!", events[1])
+        
+        job.cancel()
     }
 }

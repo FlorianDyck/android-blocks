@@ -11,8 +11,11 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
 import com.google.gson.Gson
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "games")
 data class Game(
@@ -37,6 +40,26 @@ data class GameStateEntity(
     val stateIndex: Int,
     val data: GameState // Will be converted to JSON
 )
+
+@Entity(tableName = "block_achievements")
+data class BlockAchievement(
+    @PrimaryKey val brick: Brick,
+    val maxLinesCleared: Int
+)
+
+class BrickConverter {
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromBrick(brick: Brick): String {
+        return gson.toJson(brick)
+    }
+
+    @TypeConverter
+    fun toBrick(json: String): Brick {
+        return gson.fromJson(json, Brick::class.java)
+    }
+}
 
 class GameStateConverter {
     private val gson = Gson()
@@ -82,8 +105,32 @@ interface GameDao {
     }
 }
 
-@Database(entities = [Game::class, GameStateEntity::class], version = 1, exportSchema = false)
-@TypeConverters(GameStateConverter::class)
+@Dao
+interface BlockAchievementDao {
+    @Query("SELECT * FROM block_achievements WHERE brick = :brick")
+    suspend fun getAchievement(brick: Brick): BlockAchievement?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAchievement(achievement: BlockAchievement)
+}
+
+@Database(
+    entities = [Game::class, GameStateEntity::class, BlockAchievement::class],
+    version = 2,
+    exportSchema = false
+)
+@TypeConverters(GameStateConverter::class, BrickConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao
+    abstract fun blockAchievementDao(): BlockAchievementDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `block_achievements` (`brick` TEXT NOT NULL, `maxLinesCleared` INTEGER NOT NULL, PRIMARY KEY(`brick`))"
+                )
+            }
+        }
+    }
 }
