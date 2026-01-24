@@ -79,7 +79,13 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("settings") {
                         myOnBackPressedCallback.isEnabled = false
-                        Options(gameViewModel) {
+                        Options(gameViewModel, openAchievements = { navController.navigate("achievements") }) {
+                            if (navController.currentBackStackEntry != null) navController.popBackStack()
+                        }
+                    }
+                    composable("achievements") {
+                        myOnBackPressedCallback.isEnabled = false
+                        AchievementsPage(gameViewModel) {
                             if (navController.currentBackStackEntry != null) navController.popBackStack()
                         }
                     }

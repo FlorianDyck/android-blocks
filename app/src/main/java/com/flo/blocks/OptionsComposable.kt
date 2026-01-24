@@ -252,12 +252,20 @@ fun NewGameOptions(
 }
 
 @Composable
-fun Options(computeViewModel: GameViewModel, close: () -> Unit) {
+fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close: () -> Unit) {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Gameplay", Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
+                
+                Button(
+                    onClick = openAchievements,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Text("View Achievements")
+                }
+
                 var computeEnabled by remember {
                     mutableStateOf(computeViewModel.computeEnabled)
                 }

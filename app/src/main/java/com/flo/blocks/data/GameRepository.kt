@@ -60,4 +60,10 @@ open class GameRepository(
             blockAchievementDao.upsertAchievement(BlockAchievement(brick, lines))
         }
     }
+
+    open suspend fun getAllAchievements(): List<BlockAchievement> {
+        return withContext(Dispatchers.IO) {
+            blockAchievementDao.getAllAchievements()
+        }
+    }
 }

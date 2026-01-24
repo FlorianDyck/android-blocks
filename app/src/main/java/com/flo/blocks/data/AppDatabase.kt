@@ -110,6 +110,9 @@ interface BlockAchievementDao {
     @Query("SELECT * FROM block_achievements WHERE brick = :brick")
     suspend fun getAchievement(brick: Brick): BlockAchievement?
 
+    @Query("SELECT * FROM block_achievements")
+    suspend fun getAllAchievements(): List<BlockAchievement>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAchievement(achievement: BlockAchievement)
 }

@@ -422,4 +422,6 @@ class GameViewModel(
             }
         }
     }
+
+    suspend fun getAllAchievements() = gameRepository.getAllAchievements()
 }
