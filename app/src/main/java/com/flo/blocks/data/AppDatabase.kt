@@ -11,11 +11,11 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
 import com.google.gson.Gson
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "games")
 data class Game(

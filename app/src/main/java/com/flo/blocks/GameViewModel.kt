@@ -1,10 +1,12 @@
 package com.flo.blocks
 
-import com.flo.blocks.data.SettingsRepository
+
 import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flo.blocks.data.GameRepository
+import com.flo.blocks.data.SettingsRepository
 import com.flo.blocks.game.BitContext
 import com.flo.blocks.game.Board
 import com.flo.blocks.game.Brick
@@ -19,16 +21,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Stack
-
-
-import com.flo.blocks.data.GameRepository
-import kotlinx.coroutines.flow.drop
 
 class GameViewModel(
     private val settingsRepository: SettingsRepository,

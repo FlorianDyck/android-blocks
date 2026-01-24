@@ -2,7 +2,6 @@ package com.flo.blocks
 
 import com.flo.blocks.data.SettingsRepository
 import com.flo.blocks.data.GameRepository
-import com.flo.blocks.data.GameDao
 import com.flo.blocks.GameViewModel.ComputeEnabled
 import com.flo.blocks.GameViewModel.UndoEnabled
 import kotlinx.coroutines.Dispatchers
@@ -11,7 +10,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -22,7 +20,6 @@ import org.junit.Test
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import org.mockito.kotlin.doReturn
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameViewModelTest {

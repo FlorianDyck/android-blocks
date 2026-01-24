@@ -1,6 +1,5 @@
 package com.flo.blocks
 
-import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.CombinedVibration
@@ -45,7 +44,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,6 +54,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -64,6 +63,7 @@ import androidx.compose.ui.zIndex
 import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
@@ -134,15 +134,13 @@ fun Brick(brick: ColoredBrick, blockSize: Dp) {
 
 @Composable
 fun computeLayout(board: ColoredBoard): Pair<Boolean, Int> {
-    val configuration = (LocalContext.current as Activity).resources.configuration
-    val width = configuration.screenWidthDp
-    val height = configuration.screenHeightDp
-    val vertical = height >= width
+    val size = LocalWindowInfo.current.containerSize
+    val vertical = size.height >= size.width
 
     val boardSize = max(board.width, board.height)
     val blockSize = min(
-        max(width, height) / (boardSize + 12),
-        min(width, height) / max(boardSize + 1, 11)
+        max(size.width, size.height) / (boardSize + 12),
+        min(size.width, size.height) / max(boardSize + 1, 11)
     )
     return Pair(vertical, blockSize)
 }
@@ -169,7 +167,8 @@ fun AlignInDirection(vertical: Boolean, arrangement: HorizontalOrVertical, conte
 @Composable
 fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> Unit) {
     val game by gameViewModel.game.asStateFlow().collectAsState()
-    val (vertical, blockSize) = computeLayout(game.board)
+    val (vertical, blockDensity) = computeLayout(game.board)
+    val blockSize = blockDensity / LocalDensity.current.density
 
     val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
 
@@ -194,15 +193,20 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     var boardPosition: Offset by remember { mutableStateOf(Offset.Zero) }
     var blockPosition: Offset? by remember { mutableStateOf(null) }
 
-    val blockDensity = LocalDensity.current.density * blockSize
-    val hovering by remember {
-        derivedStateOf {
-            blockPosition?.let {
-                game.bricks[offset!!.first]?.brick?.offset(((it - boardPosition) / blockDensity).round())
+    val hovering by
+            remember(game, blockDensity) {
+                derivedStateOf {
+                    blockPosition?.let {
+                        game.bricks[offset!!.first]?.brick?.offset(
+                                ((it - boardPosition) / blockDensity.toFloat()).round()
+                        )
+                    }
+                }
             }
-        }
-    }
-    val selected by remember { derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false } }
+    val selected by
+            remember(game, hovering) {
+                derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false }
+            }
 
     @Composable
     fun Board(board: ColoredBoard, blockSize: Dp) {

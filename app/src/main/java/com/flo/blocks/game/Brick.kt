@@ -28,7 +28,7 @@ open class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
         getPosition(y, height - x - 1)
     })
 
-    fun flipHorizonally(): Brick = Brick(width, height, BooleanArray(width * height) {
+    fun flipHorizontally(): Brick = Brick(width, height, BooleanArray(width * height) {
         val x = it % width
         val y = it / width
         getPosition(width - x - 1, y)

@@ -1,7 +1,5 @@
 package com.flo.blocks.game
 
-import java.util.ArrayList
-
 fun rect(x0: Int, y0: Int, x1: Int, y1: Int): Brick =
     Brick(x1 + 1, y1 + 1, BooleanArray((x1 + 1) * (y1 + 1)) {
         val width = x1 + 1

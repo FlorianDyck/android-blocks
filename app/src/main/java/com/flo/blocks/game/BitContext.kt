@@ -124,7 +124,7 @@ class BitContext(val boardSize: IntOffset) {
         }
 
         internal fun gradesSlow(): Grades {
-            var result = 0L;
+            var result = 0L
             val left: ULong = board xor ((board shl 1) or column)
             val right: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
             val bottom: ULong = board xor ((board shl boardSize.x) or line)

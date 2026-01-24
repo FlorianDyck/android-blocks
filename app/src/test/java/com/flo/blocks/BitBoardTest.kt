@@ -3,7 +3,6 @@ package com.flo.blocks
 import androidx.compose.ui.unit.IntOffset
 import com.flo.blocks.game.BRICKS
 import com.flo.blocks.game.BitContext
-import com.flo.blocks.game.Board
 import com.flo.blocks.game.ColoredBoard
 import org.junit.Test
 
