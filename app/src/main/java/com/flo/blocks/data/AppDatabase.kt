@@ -115,6 +115,9 @@ interface BlockAchievementDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAchievement(achievement: BlockAchievement)
+
+    @Query("DELETE FROM block_achievements")
+    suspend fun clearAllAchievements()
 }
 
 @Database(

@@ -2,6 +2,7 @@ package com.flo.blocks.data
 
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.GameState
+import com.flo.blocks.game.canonical
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,6 +18,27 @@ open class GameRepository(
             currentGameId = gameDao.getCurrentGameId()
             if (currentGameId == null) {
                 currentGameId = gameDao.insertGame(Game()).toInt()
+            }
+            
+            // Migrate achievements to canonical form
+            val allAchievements = blockAchievementDao.getAllAchievements()
+            val canonicalAchievements = mutableMapOf<Brick, Int>()
+            var needsMigration = false
+            
+            for (achievement in allAchievements) {
+                val canonicalBrick = achievement.brick.canonical
+                if (achievement.brick != canonicalBrick) {
+                    needsMigration = true
+                }
+                val currentMax = canonicalAchievements[canonicalBrick] ?: 0
+                canonicalAchievements[canonicalBrick] = maxOf(currentMax, achievement.maxLinesCleared)
+            }
+            
+            if (needsMigration) {
+                blockAchievementDao.clearAllAchievements()
+                for ((brick, maxLines) in canonicalAchievements) {
+                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines))
+                }
             }
         }
     }
@@ -51,13 +73,17 @@ open class GameRepository(
 
     open suspend fun getBlockAchievement(brick: Brick): BlockAchievement? {
         return withContext(Dispatchers.IO) {
-            blockAchievementDao.getAchievement(brick)
+            blockAchievementDao.getAchievement(brick.canonical)
         }
     }
 
     open suspend fun updateBlockAchievement(brick: Brick, lines: Int) {
         withContext(Dispatchers.IO) {
-            blockAchievementDao.upsertAchievement(BlockAchievement(brick, lines))
+            val canonicalBrick = brick.canonical
+            val currentRecord = blockAchievementDao.getAchievement(canonicalBrick)?.maxLinesCleared ?: 0
+            if (lines > currentRecord) {
+                blockAchievementDao.upsertAchievement(BlockAchievement(canonicalBrick, lines))
+            }
         }
     }
 

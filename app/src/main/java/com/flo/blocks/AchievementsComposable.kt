@@ -31,7 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.flo.blocks.data.BlockAchievement
-import com.flo.blocks.game.BRICKS
+import com.flo.blocks.game.CANONICAL_BRICKS
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBrick
 
@@ -65,7 +65,7 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(BRICKS) { brick ->
+            items(CANONICAL_BRICKS) { brick ->
                 AchievementItem(
                     brick = brick,
                     maxLines = achievementsMap[brick]?.maxLinesCleared ?: 0

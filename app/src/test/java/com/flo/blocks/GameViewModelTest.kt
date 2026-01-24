@@ -4,6 +4,7 @@ import com.flo.blocks.data.SettingsRepository
 import com.flo.blocks.data.GameRepository
 import com.flo.blocks.GameViewModel.ComputeEnabled
 import com.flo.blocks.GameViewModel.UndoEnabled
+import com.flo.blocks.game.canonical
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -51,10 +52,11 @@ class GameViewModelTest {
         override suspend fun saveGameState(state: com.flo.blocks.game.GameState, index: Int) {}
         override suspend fun newGame() {}
         override suspend fun getBlockAchievement(brick: com.flo.blocks.game.Brick): com.flo.blocks.data.BlockAchievement? {
-            return achievements[brick]?.let { com.flo.blocks.data.BlockAchievement(brick, it) }
+            val canonical = brick.canonical
+            return achievements[canonical]?.let { com.flo.blocks.data.BlockAchievement(canonical, it) }
         }
         override suspend fun updateBlockAchievement(brick: com.flo.blocks.game.Brick, lines: Int) {
-            achievements[brick] = lines
+            achievements[brick.canonical] = lines
         }
     }
 
@@ -127,6 +129,54 @@ class GameViewModelTest {
         // Should be "Well done" now as 2 is not > 2
         assertEquals(2, events.size)
         assertEquals("Well done! 2 lines cleared!", events[1].message)
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `achievements are independent of rotation`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<GameViewModel.Achievement>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // Setup a state where placing a brick clears 2 lines
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        for (y in 0..1) {
+            for (x in 1..7) {
+                board[x, y] = com.flo.blocks.game.BlockColor.BLUE
+            }
+        }
+        
+        val brick = com.flo.blocks.game.rect(0, 0, 0, 1) // 1x2 vertical brick
+        val rotatedBrick = brick.rotate() // 2x1 horizontal brick
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        val rotatedColoredBrick = com.flo.blocks.game.ColoredBrick(rotatedBrick, com.flo.blocks.game.BlockColor.GREEN)
+        
+        // 1. Place vertical brick to clear 2 lines
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        assertEquals("New Record! 2 lines cleared!", events.last().message)
+        
+        // 2. Place horizontal brick (rotated) to clear 2 lines
+        // Setup state for horizontal clear
+        val board2 = com.flo.blocks.game.ColoredBoard(8, 8)
+        for (x in 0..1) {
+            for (y in 1..7) {
+                board2[x, y] = com.flo.blocks.game.BlockColor.BLUE
+            }
+        }
+        viewModel.game.value = com.flo.blocks.game.GameState(board2, arrayOf(rotatedColoredBrick, null, null), 0)
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+        
+        // Should be "Well done" because 2 is not > 2 (record from first placement)
+        assertEquals("Well done! 2 lines cleared!", events.last().message)
         
         job.cancel()
     }

@@ -10,21 +10,32 @@ fun rect(x0: Int, y0: Int, x1: Int, y1: Int): Brick =
 
 fun field(x: Int, y: Int): Brick = rect(x, y, x, y)
 
-fun buildBricks(): List<Brick> {
-    val result = ArrayList<Brick>()
+private val canonicalMap = HashMap<Brick, Brick>()
 
-    fun addRotations(brick: Brick) {
+val Brick.canonical: Brick
+    get() = canonicalMap[this] ?: this
+
+fun buildBricks(): Pair<List<Brick>, List<Brick>> {
+    val result = ArrayList<Brick>()
+    val canonicals = ArrayList<Brick>()
+    canonicalMap.clear()
+
+    fun addRotations(brick: Brick, canonical: Brick) {
         var rotated = brick
         do {
-            result.add(rotated)
+            if (rotated !in result) {
+                result.add(rotated)
+                canonicalMap[rotated] = canonical
+            }
             rotated = rotated.rotate()
         } while (rotated != brick)
     }
 
     fun addAllVersions(brick: Brick) {
-        addRotations(brick)
+        canonicals.add(brick)
+        addRotations(brick, brick)
         val flipped = brick.flipVertically()
-        if (flipped !in result) addRotations(flipped)
+        addRotations(flipped, brick)
     }
 
     for (i in 0..4) addAllVersions(rect(0, 0, i, 0)) // 1*i
@@ -35,7 +46,9 @@ fun buildBricks(): List<Brick> {
     addAllVersions(rect(0, 0, 2, 0) + field(1, 1)) // T
     addAllVersions(rect(0, 0, 1, 0) + rect(1, 1, 2, 1)) // Z
 
-    return result
+    return Pair(result, canonicals)
 }
 
-val BRICKS = buildBricks()
+private val bricksPair = buildBricks()
+val BRICKS = bricksPair.first
+val CANONICAL_BRICKS = bricksPair.second
