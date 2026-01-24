@@ -10,6 +10,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -92,7 +94,7 @@ class GameViewModelTest {
         val viewModel = GameViewModel(settingsRepository, gameRepository)
         advanceUntilIdle()
 
-        val events = mutableListOf<String>()
+        val events = mutableListOf<GameViewModel.Achievement>()
         val job = launch {
             viewModel.achievementEvents.collect { events.add(it) }
         }
@@ -116,7 +118,9 @@ class GameViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, events.size)
-        assertEquals("New Record! 2 lines cleared!", events[0])
+        assertEquals("New Record! 2 lines cleared!", events[0].message)
+        assertEquals(brick, events[0].brick.brick)
+        assertEquals(com.flo.blocks.game.BlockColor.RED, events[0].brick.color)
         
         // Place again (setup same state)
         viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
@@ -125,7 +129,7 @@ class GameViewModelTest {
         
         // Should be "Well done" now as 2 is not > 2
         assertEquals(2, events.size)
-        assertEquals("Well done! 2 lines cleared!", events[1])
+        assertEquals("Well done! 2 lines cleared!", events[1].message)
         
         job.cancel()
     }

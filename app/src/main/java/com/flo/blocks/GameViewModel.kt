@@ -9,6 +9,7 @@ import com.flo.blocks.game.BitContext
 import com.flo.blocks.game.Board
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBoard
+import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.OffsetBrick
 import kotlinx.coroutines.Dispatchers
@@ -100,9 +101,12 @@ class GameViewModel(
             }
         }
     }
+
+    data class Achievement(val message: String, val brick: ColoredBrick)
+
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
-    private val _achievementEvents = MutableSharedFlow<String>()
+    private val _achievementEvents = MutableSharedFlow<Achievement>()
     val achievementEvents = _achievementEvents.asSharedFlow()
 
     val game: MutableStateFlow<GameState> = MutableStateFlow(GameState(ColoredBoard(8, 8)))
@@ -131,7 +135,8 @@ class GameViewModel(
     }
 
     fun placeBrick(index: Int, position: IntOffset): Int {
-        val brick = game.value.bricks[index]?.brick ?: return 0
+        val coloredBrick = game.value.bricks[index] ?: return 0
+        val brick = coloredBrick.brick
         val oldScore = game.value.score
         updateGameState(game.value.place(index, position))
         val cleared = game.value.score - oldScore
@@ -141,9 +146,9 @@ class GameViewModel(
                 val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
                 if (cleared > currentRecord) {
                     gameRepository.updateBlockAchievement(brick, cleared)
-                    _achievementEvents.emit("New Record! $cleared lines cleared!")
+                    _achievementEvents.emit(Achievement("New Record! $cleared lines cleared!", coloredBrick))
                 } else {
-                    _achievementEvents.emit("Well done! $cleared lines cleared!")
+                    _achievementEvents.emit(Achievement("Well done! $cleared lines cleared!", coloredBrick))
                 }
             }
         }

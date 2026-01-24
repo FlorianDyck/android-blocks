@@ -177,7 +177,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
 //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
-    var achievementMessage by remember { mutableStateOf<String?>(null) }
+    var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
 
     LaunchedEffect(Unit) {
         gameViewModel.achievementEvents.collectLatest { message ->
@@ -434,18 +434,24 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                     .padding(top = 100.dp)
                     .zIndex(20f)
             ) {
-                achievementMessage?.let {
+                achievementMessage?.let { achievement ->
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 24.dp, vertical = 12.dp)
                     ) {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Brick(achievement.brick, (blockSize / 2).dp)
+                            Text(
+                                text = achievement.message,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }
