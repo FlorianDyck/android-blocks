@@ -140,13 +140,15 @@ class GameViewModel(
         updateGameState(game.value.place(index, position))
         val cleared = game.value.score - oldScore
 
-        if (cleared > 1) {
+        if (cleared > 0) {
             viewModelScope.launch {
                 val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
                 if (cleared > currentRecord) {
                     gameRepository.updateBlockAchievement(brick, cleared)
-                    _achievementEvents.emit(Achievement("New Record! $cleared lines cleared!", coloredBrick))
-                } else {
+                    if (cleared > 1) {
+                        _achievementEvents.emit(Achievement("New Record! $cleared lines cleared!", coloredBrick))
+                    }
+                } else if (cleared > 1) {
                     _achievementEvents.emit(Achievement("Well done! $cleared lines cleared!", coloredBrick))
                 }
             }
