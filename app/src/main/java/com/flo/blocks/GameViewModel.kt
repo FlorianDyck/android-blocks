@@ -79,6 +79,12 @@ class GameViewModel(
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
             showNewGameButton.value = settingsRepository.showNewGameButtonFlow.first()
+            
+            viewModelScope.launch {
+                settingsRepository.highscoreFlow.collect {
+                    highscore.value = it
+                }
+            }
         }
     }
 
@@ -111,6 +117,8 @@ class GameViewModel(
 
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
+    val highscore = MutableStateFlow(0)
+
     private val _achievementEvents = MutableSharedFlow<Achievement>()
     val achievementEvents = _achievementEvents.asSharedFlow()
 
@@ -137,6 +145,16 @@ class GameViewModel(
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
+    }
+
+    private fun updateHighscore() {
+        val currentScore = game.value.score
+        if (currentScore > highscore.value && currentScore > 0) {
+            highscore.value = currentScore
+            viewModelScope.launch {
+                settingsRepository.saveHighscore(currentScore)
+            }
+        }
     }
 
     fun placeBrick(index: Int, position: IntOffset): Int {
@@ -173,6 +191,7 @@ class GameViewModel(
     }
 
     fun newGame(width: Int, height: Int) {
+        updateHighscore()
         val newState = GameState(ColoredBoard(width, height))
         stopComputation()
         history.clear()
@@ -214,7 +233,7 @@ class GameViewModel(
             // So re-saving the popped state at the new index ensures consistency.
             gameRepository.saveGameState(game.value, gameStateIndex)
         }
-        
+
         val canStillUndo = canUndo()
         canUndo.value = canStillUndo
         if(computeEnabled == ComputeEnabled.Auto) {

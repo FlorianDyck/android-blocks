@@ -42,6 +42,7 @@ class GameViewModelTest {
         whenever(settingsRepository.showNewGameButtonFlow).thenReturn(flowOf(false))
         whenever(settingsRepository.boardWidthFlow).thenReturn(flowOf(8))
         whenever(settingsRepository.boardHeightFlow).thenReturn(flowOf(8))
+        whenever(settingsRepository.highscoreFlow).thenReturn(flowOf(0))
     }
 
     class FakeGameRepository : GameRepository(mock(), mock()) {
@@ -358,5 +359,46 @@ class GameViewModelTest {
         assertEquals(true, ach.isMinimalist)
         
         job.cancel()
+    }
+
+    @Test
+    fun `highscore is detected on loss and saved on new game`() = runTest(testDispatcher) {
+        whenever(settingsRepository.highscoreFlow).thenReturn(flowOf(10))
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        assertEquals(10, viewModel.highscore.value)
+
+        // 1. Achieve highscore but not lost
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        for (x in 1..7) board[x, 0] = com.flo.blocks.game.BlockColor.BLUE
+        val brick = com.flo.blocks.game.rect(0, 0, 0, 0) // 1x1
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 10)
+        
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+        
+        assertEquals(10, viewModel.highscore.value)
+
+        // 2. Force a loss state and verify detection
+        // We'll create a new GameState that IS lost and has a high score
+        val lostBoard = com.flo.blocks.game.ColoredBoard(1, 1).apply { set(0, 0, com.flo.blocks.game.BlockColor.BLUE) }
+        // 2x2 brick cannot be placed on 1x1 board
+        val unplaceableBrick = com.flo.blocks.game.ColoredBrick(com.flo.blocks.game.rect(0, 0, 1, 1), com.flo.blocks.game.BlockColor.RED)
+        val lostState = com.flo.blocks.game.GameState(lostBoard, arrayOf(unplaceableBrick, null, null), 12)
+        
+        // We can't easily trigger this via placeBrick because it refills randomly.
+        // But we can test that checkHighscore sets the flag and newGame saves it.
+        // Actually, let's just test the public behavior of newGame which includes checkHighscore.
+        
+        viewModel.game.value = lostState
+        viewModel.newGame(8, 8)
+        advanceUntilIdle()
+
+        assertEquals(12, viewModel.highscore.value)
+        // highscoreReached is false after newGame starts
+        verify(settingsRepository).saveHighscore(12)
     }
 }

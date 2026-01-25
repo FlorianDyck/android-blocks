@@ -22,12 +22,14 @@ interface SettingsRepository {
     val showNewGameButtonFlow: Flow<Boolean>
     val boardWidthFlow: Flow<Int>
     val boardHeightFlow: Flow<Int>
+    val highscoreFlow: Flow<Int>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
     suspend fun saveShowUndoIfEnabled(showUndo: Boolean)
     suspend fun saveShowNewGameButton(show: Boolean)
     suspend fun saveBoardSize(width: Int, height: Int)
+    suspend fun saveHighscore(score: Int)
 }
 
 class DataStoreSettingsRepository(private val context: Context) : SettingsRepository {
@@ -39,6 +41,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val SHOW_NEW_GAME_BUTTON = booleanPreferencesKey("show_new_game_button")
         val BOARD_WIDTH = intPreferencesKey("board_width")
         val BOARD_HEIGHT = intPreferencesKey("board_height")
+        val HIGHSCORE = intPreferencesKey("highscore")
     }
 
     override val computeEnabledFlow: Flow<ComputeEnabled> = context.dataStore.data
@@ -75,6 +78,13 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8 // Default to 8
         }
 
+    override val highscoreFlow: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            val width = preferences[PreferencesKeys.BOARD_WIDTH] ?: 8
+            val height = preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8
+            preferences[intPreferencesKey("highscore_${width}_${height}")] ?: 0
+        }
+
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
         context.dataStore.edit { settings ->
             settings[PreferencesKeys.COMPUTE_ENABLED] = computeEnabled.name
@@ -103,6 +113,14 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         context.dataStore.edit { settings ->
             settings[PreferencesKeys.BOARD_WIDTH] = width
             settings[PreferencesKeys.BOARD_HEIGHT] = height
+        }
+    }
+
+    override suspend fun saveHighscore(score: Int) {
+        context.dataStore.edit { settings ->
+            val width = settings[PreferencesKeys.BOARD_WIDTH] ?: 8
+            val height = settings[PreferencesKeys.BOARD_HEIGHT] ?: 8
+            settings[intPreferencesKey("highscore_${width}_${height}")] = score
         }
     }
 

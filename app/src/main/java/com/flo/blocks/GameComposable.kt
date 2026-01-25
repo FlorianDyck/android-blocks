@@ -177,6 +177,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
     var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
+    val highscore by gameViewModel.highscore.collectAsState()
 
     LaunchedEffect(Unit) {
         gameViewModel.achievementEvents.collectLatest { message ->
@@ -343,7 +344,10 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "Score: ${game.score}", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(text = "Score: ${game.score}", style = MaterialTheme.typography.titleMedium)
+                    Text(text = "Highscore: $highscore", style = MaterialTheme.typography.titleMedium)
+                }
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
                         progress = { computationProgress },
@@ -404,15 +408,20 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         .zIndex(10f)
                 ) {
                     Text(
-                        text = "Game Over",
+                        text = if (game.score > highscore) "New Highscore!" else "Game Over",
                         style = MaterialTheme.typography.displayMedium,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (game.score > highscore) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Score: ${game.score}",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Highscore: $highscore",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Row(
