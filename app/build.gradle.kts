@@ -45,6 +45,16 @@ android {
     }
 }
 
+val mockitoAgent by configurations.creating
+
+tasks.withType<Test> {
+    doFirst {
+        mockitoAgent.files.filter { it.name.contains("mockito-core") }.forEach {
+            jvmArgs("-javaagent:${it.absolutePath}")
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -52,6 +62,7 @@ kotlin {
 }
 
 dependencies {
+    "mockitoAgent"(libs.mockito.core)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
