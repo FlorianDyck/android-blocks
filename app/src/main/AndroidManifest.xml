@@ -18,7 +18,8 @@
             android:exported="true"
             android:label="Blocks"
             android:theme="@style/Theme.Blocks"
-            android:enableOnBackInvokedCallback="true">
+            android:enableOnBackInvokedCallback="true"
+            tools:ignore="UnusedAttribute">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
