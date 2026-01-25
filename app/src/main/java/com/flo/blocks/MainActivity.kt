@@ -35,7 +35,11 @@ class MainActivity : ComponentActivity() {
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "game-database"
-        ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+        ).addMigrations(
+            AppDatabase.MIGRATION_1_2,
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4
+        )
             .build()
 
         setContent {
@@ -79,7 +83,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("settings") {
                         myOnBackPressedCallback.isEnabled = false
-                        Options(gameViewModel, openAchievements = { navController.navigate("achievements") }) {
+                        Options(
+                            gameViewModel,
+                            openAchievements = { navController.navigate("achievements") }) {
                             if (navController.currentBackStackEntry != null) navController.popBackStack()
                         }
                     }

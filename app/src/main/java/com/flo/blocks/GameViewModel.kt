@@ -39,6 +39,7 @@ class GameViewModel(
         Button,
         Hidden
     }
+
     enum class UndoEnabled {
         Always,
         UnlessNewBlocks,
@@ -66,20 +67,24 @@ class GameViewModel(
             val width = settingsRepository.boardWidthFlow.first()
             val height = settingsRepository.boardHeightFlow.first()
             gameRepository.initialize()
-            val (latestState, index) = gameRepository.getLatestState() ?: Pair(GameState(ColoredBoard(width, height)), 0)
+            val (latestState, index) = gameRepository.getLatestState() ?: Pair(
+                GameState(
+                    ColoredBoard(width, height)
+                ), 0
+            )
             game.value = latestState
             gameStateIndex = index
-            
+
             val fullHistory = gameRepository.getHistory()
             if (fullHistory.isNotEmpty()) {
                 history.addAll(fullHistory.dropLast(1))
             }
-            
+
             computeEnabled = settingsRepository.computeEnabledFlow.first()
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
             showNewGameButton.value = settingsRepository.showNewGameButtonFlow.first()
-            
+
             viewModelScope.launch {
                 settingsRepository.highscoreFlow.collect {
                     highscore.value = it
@@ -136,12 +141,12 @@ class GameViewModel(
         lastGameState.value = oldState
         game.value = newState
         gameStateIndex++
-        
+
         viewModelScope.launch {
             gameRepository.saveGameState(newState, gameStateIndex)
         }
 
-        if(computeEnabled == ComputeEnabled.Auto) {
+        if (computeEnabled == ComputeEnabled.Auto) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
@@ -161,17 +166,18 @@ class GameViewModel(
         val coloredBrick = game.value.bricks[index] ?: return 0
         val brick = coloredBrick.brick
         val oldScore = game.value.score
-        
+
         val (nextState, blockRemoved, cellsCleared) = game.value.place(index, position)
         updateGameState(nextState)
-        
+
         val cleared = game.value.score - oldScore
 
         if (cleared > 0 || blockRemoved) {
             viewModelScope.launch {
                 val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
                 val isNewRecord = cleared > currentRecord
-                val minCells = brick.minCellsToClear(game.value.board.width, game.value.board.height)
+                val minCells =
+                    brick.minCellsToClear(game.value.board.width, game.value.board.height)
                 val isMinimalist = blockRemoved && cellsCleared == minCells
 
                 if (blockRemoved) gameRepository.markComeAndGone(brick)
@@ -179,7 +185,15 @@ class GameViewModel(
                 if (isMinimalist) gameRepository.markMinimalist(brick)
 
                 if (blockRemoved || isNewRecord || isMinimalist || cleared > 1) {
-                    _achievementEvents.emit(Achievement(coloredBrick, cleared, isNewRecord, blockRemoved, isMinimalist))
+                    _achievementEvents.emit(
+                        Achievement(
+                            coloredBrick,
+                            cleared,
+                            isNewRecord,
+                            blockRemoved,
+                            isMinimalist
+                        )
+                    )
                 }
             }
         }
@@ -203,16 +217,16 @@ class GameViewModel(
             gameRepository.saveGameState(newState, gameStateIndex)
         }
 
-        if(computeEnabled == ComputeEnabled.Auto) {
+        if (computeEnabled == ComputeEnabled.Auto) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
     }
 
     fun canUndo(): Boolean {
-        return history.isNotEmpty() && when(undoEnabled) {
+        return history.isNotEmpty() && when (undoEnabled) {
             UndoEnabled.Always -> true
-            UndoEnabled.UnlessNewBlocks -> game.value.bricks.any{ it == null }
+            UndoEnabled.UnlessNewBlocks -> game.value.bricks.any { it == null }
             UndoEnabled.Never -> false
         }
     }
@@ -223,7 +237,7 @@ class GameViewModel(
         game.value = history.pop()
         lastGameState.value = history.lastOrNull()
         gameStateIndex--
-        
+
         viewModelScope.launch {
             // We just need to ensure the DB knows current state is now previous index 
             // In our append-only logic, we might not need to do anything if we rely on index, 
@@ -236,7 +250,7 @@ class GameViewModel(
 
         val canStillUndo = canUndo()
         canUndo.value = canStillUndo
-        if(computeEnabled == ComputeEnabled.Auto) {
+        if (computeEnabled == ComputeEnabled.Auto) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         return canStillUndo
@@ -428,8 +442,13 @@ class GameViewModel(
                 job?.join()
                 job = viewModelScope.launch {
                     withContext(Dispatchers.Default) {
-                        if(game.value.board.width * game.value.board.height <= 64) {
-                            val context = BitContext(IntOffset(game.value.board.width, game.value.board.height))
+                        if (game.value.board.width * game.value.board.height <= 64) {
+                            val context = BitContext(
+                                IntOffset(
+                                    game.value.board.width,
+                                    game.value.board.height
+                                )
+                            )
                             computeSyncBit(
                                 context.BitBoard(computationStartState.first),
                                 bricks.map { context.BitBrick(it) },

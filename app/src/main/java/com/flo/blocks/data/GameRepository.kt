@@ -19,25 +19,33 @@ open class GameRepository(
             if (currentGameId == null) {
                 currentGameId = gameDao.insertGame(Game()).toInt()
             }
-            
+
             // Migrate achievements to canonical form
             val allAchievements = blockAchievementDao.getAllAchievements()
             val canonicalAchievements = mutableMapOf<Brick, Int>()
             var needsMigration = false
-            
+
             for (achievement in allAchievements) {
                 val canonicalBrick = achievement.brick.canonical
                 if (achievement.brick != canonicalBrick) {
                     needsMigration = true
                 }
                 val currentMax = canonicalAchievements[canonicalBrick] ?: 0
-                canonicalAchievements[canonicalBrick] = maxOf(currentMax, achievement.maxLinesCleared)
+                canonicalAchievements[canonicalBrick] =
+                    maxOf(currentMax, achievement.maxLinesCleared)
             }
-            
+
             if (needsMigration) {
                 blockAchievementDao.clearAllAchievements()
                 for ((brick, maxLines) in canonicalAchievements) {
-                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines, false, false))
+                    blockAchievementDao.upsertAchievement(
+                        BlockAchievement(
+                            brick,
+                            maxLines,
+                            false,
+                            false
+                        )
+                    )
                 }
             }
         }

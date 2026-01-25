@@ -2,11 +2,19 @@ package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 
-data class PlacementResult(val board: ColoredBoard, val cleared: Int, val cellsCleared: Int, val blockRemoved: Boolean)
+data class PlacementResult(
+    val board: ColoredBoard,
+    val cleared: Int,
+    val cellsCleared: Int,
+    val blockRemoved: Boolean
+)
 
 data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockColor>) {
 
-    constructor(width: Int, height: Int) : this(width, height, Array(width * height) { BlockColor.BACKGROUND })
+    constructor(width: Int, height: Int) : this(
+        width,
+        height,
+        Array(width * height) { BlockColor.BACKGROUND })
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -31,7 +39,8 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
     fun canPlace(brick: Brick) = brick.offsetsWithin(width, height).any { canPlace(it) }
 
     fun canPlace(brick: OffsetBrick): Boolean {
-        return brick.onBoard(width, height) && brick.positionList().all { board[it.x + it.y * width].free() }
+        return brick.onBoard(width, height) && brick.positionList()
+            .all { board[it.x + it.y * width].free() }
     }
 
     private val rowIndices = 0 until width
@@ -52,8 +61,10 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         val positions = hovering.brick.positionList()
         for (position in positions) result[position] = hovering.color
 
-        val lines = hovering.brick.lines().filter { line -> rowIndices.all { row -> result[row, line].used() } }
-        val rows = hovering.brick.rows().filter { row -> lineIndices.all { line -> result[row, line].used() } }
+        val lines = hovering.brick.lines()
+            .filter { line -> rowIndices.all { row -> result[row, line].used() } }
+        val rows = hovering.brick.rows()
+            .filter { row -> lineIndices.all { line -> result[row, line].used() } }
 
         for (line in lines) for (row in rowIndices) result[row, line] = BlockColor.BACKGROUND
         for (row in rows) for (line in lineIndices) result[row, line] = BlockColor.BACKGROUND

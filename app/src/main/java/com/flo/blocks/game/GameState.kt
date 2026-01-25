@@ -13,7 +13,11 @@ data class GameState(
     data class Placement(val state: GameState, val blockRemoved: Boolean, val cellsCleared: Int)
 
     fun place(index: Int, position: IntOffset): Placement {
-        val (newBoard, cleared, cellsCleared, blockRemoved) = board.place(bricks[index]!!.offset(position))
+        val (newBoard, cleared, cellsCleared, blockRemoved) = board.place(
+            bricks[index]!!.offset(
+                position
+            )
+        )
         var newBricks = bricks.clone()
         newBricks[index] = null
         if (newBricks.all { it == null }) {

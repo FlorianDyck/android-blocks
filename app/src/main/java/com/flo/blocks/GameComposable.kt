@@ -146,7 +146,11 @@ fun computeLayout(board: ColoredBoard): Pair<Boolean, Int> {
 }
 
 @Composable
-fun AlignInDirection(vertical: Boolean, arrangement: HorizontalOrVertical, content: @Composable () -> Unit) {
+fun AlignInDirection(
+    vertical: Boolean,
+    arrangement: HorizontalOrVertical,
+    content: @Composable () -> Unit
+) {
     if (vertical) {
         Column(
             verticalArrangement = arrangement,
@@ -206,8 +210,10 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             }
     val selected by
             remember(game, hovering) {
-                derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false }
-            }
+        derivedStateOf {
+            hovering?.let { game.board.canPlace(it) } ?: false
+        }
+    }
 
     @Composable
     fun Board(board: ColoredBoard, blockSize: Dp) {
@@ -286,7 +292,6 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     }
 
 
-
     val showNewGameOptions = remember { mutableStateOf(false) }
 
     if (showNewGameOptions.value) {
@@ -345,8 +350,14 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(text = "Score: ${game.score}", style = MaterialTheme.typography.titleMedium)
-                    Text(text = "Highscore: $highscore", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Score: ${game.score}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Highscore: $highscore",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
@@ -385,7 +396,8 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         Box(
                             Modifier
                                 .alpha(backProgress)
-                                .background(MaterialTheme.colorScheme.background)) {
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
                             Content(lastGameState!!)
                         }
                     }
@@ -448,12 +460,21 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                     .zIndex(20f)
             ) {
                 achievementMessage?.let { achievement ->
-                    val congratulations = remember { listOf("Well done!", "Nice!", "Great!", "Awesome!", "Good job!", "Fantastic!") }
+                    val congratulations = remember {
+                        listOf(
+                            "Well done!",
+                            "Nice!",
+                            "Great!",
+                            "Awesome!",
+                            "Good job!",
+                            "Fantastic!"
+                        )
+                    }
                     val message = remember(achievement) {
                         val parts = mutableListOf<String>()
                         if (achievement.isMinimalist) parts.add("Minimalist! No more than absolutely necessary.")
                         else if (achievement.blockRemoved) parts.add("Come and Gone!")
-                        
+
                         if (achievement.isNewRecord) parts.add("New Record! ${achievement.cleared} lines cleared!")
                         if (parts.isEmpty() && achievement.cleared > 1) {
                             parts.add("${congratulations.random()} ${achievement.cleared} lines cleared!")

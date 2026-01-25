@@ -12,12 +12,15 @@ data class OffsetBrick(val offset: IntOffset, val brick: Brick) {
         return 0 <= offset.x && offset.x + brick.width <= width &&
                 0 <= offset.y && offset.y + brick.height <= height
     }
+
     fun positionList(): List<IntOffset> {
         return brick.positionList().map { it + offset }
     }
+
     fun getPosition(x: Int, y: Int): Boolean {
         return brick.getPosition(x - offset.x, y - offset.y)
     }
+
     fun rows(): IntRange = getXMin()..getXMax()
     fun lines(): IntRange = getYMin()..getYMax()
 }

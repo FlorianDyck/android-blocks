@@ -47,6 +47,7 @@ class BitContext(val boardSize: IntOffset) {
             }
             result
         }())
+
         fun get(position: IntOffset) = (board.shr(position.shift()).and(1UL)) != 0UL
         private fun placeablePositions(brick: BitBrick): ULong {
             var result = 0UL
@@ -100,20 +101,22 @@ class BitContext(val boardSize: IntOffset) {
 
             // storing how many bits are set into different variables
             val diff4 = b3
-            val diff3 = b2       and b1
-            val diff2 = b2       and b1.inv()
+            val diff3 = b2 and b1
+            val diff2 = b2 and b1.inv()
             val diff1 = b2.inv() and b1
             val diff0 = b3.inv() and b2.inv() and b1.inv()
 
             return Grades(
-                intArrayOf( // free
+                intArrayOf(
+                    // free
                     (diff0 and board.inv()).countOneBits(),
                     (diff1 and board.inv()).countOneBits(),
                     (diff2 and board.inv()).countOneBits(),
                     (diff3 and board.inv()).countOneBits(),
                     (diff4 and board.inv()).countOneBits(),
                 ),
-                intArrayOf( // used
+                intArrayOf(
+                    // used
                     (diff0 and board).countOneBits(),
                     (diff1 and board).countOneBits(),
                     (diff2 and board).countOneBits(),
@@ -128,7 +131,8 @@ class BitContext(val boardSize: IntOffset) {
             val left: ULong = board xor ((board shl 1) or column)
             val right: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
             val bottom: ULong = board xor ((board shl boardSize.x) or line)
-            val top: ULong = board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
+            val top: ULong =
+                board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
 
             val ALTERNATING_BITS = 0x55_55_55_55_55_55_55_55UL
             // number of set bits in 2-bit groups among left, right and bottom
@@ -145,8 +149,7 @@ class BitContext(val boardSize: IntOffset) {
                 (( sum3_0        and ALTERNATING_BITS2) + ((top shr 1) and EVERY_FOURTH_BIT) + 5UL * ((board shr 1) and EVERY_FOURTH_BIT)).toLong(),
                 (( sum3_1        and ALTERNATING_BITS2) + ( top        and EVERY_FOURTH_BIT) + 5UL * ( board        and EVERY_FOURTH_BIT)).toLong(),
             )
-            for(numbersOfSetBitsPart in numbersOfSetBits)
-            {
+            for (numbersOfSetBitsPart in numbersOfSetBits) {
                 // numbersOfSetBitsPart contains in each 4-bit group a number for a pixel on the board,
                 // of how many adjacent pixels are different
                 // the right shift and binary and with 1111 (0xF as Long, 0xFL) gets this number
@@ -166,19 +169,21 @@ class BitContext(val boardSize: IntOffset) {
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 20) and 0xFL).toInt())
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 16) and 0xFL).toInt())
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 12) and 0xFL).toInt())
-                result += 1L shl (6 * ((numbersOfSetBitsPart shr  8) and 0xFL).toInt())
-                result += 1L shl (6 * ((numbersOfSetBitsPart shr  4) and 0xFL).toInt())
-                result += 1L shl (6 * ((numbersOfSetBitsPart       ) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 8) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart shr 4) and 0xFL).toInt())
+                result += 1L shl (6 * ((numbersOfSetBitsPart) and 0xFL).toInt())
             }
             return Grades(
-                intArrayOf( // free
-                    (( result        ).toInt()) and 0x3F,
-                    (((result) shr  6).toInt()) and 0x3F,
+                intArrayOf(
+                    // free
+                    ((result).toInt()) and 0x3F,
+                    (((result) shr 6).toInt()) and 0x3F,
                     (((result) shr 12).toInt()) and 0x3F,
                     (((result) shr 18).toInt()) and 0x3F,
                     (((result) shr 24).toInt()) and 0x3F,
                 ),
-                intArrayOf( // used
+                intArrayOf(
+                    // used
                     (((result) shr 30).toInt()) and 0x3F,
                     (((result) shr 36).toInt()) and 0x3F,
                     (((result) shr 42).toInt()) and 0x3F,

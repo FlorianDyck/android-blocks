@@ -25,7 +25,8 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
 
     fun canPlace(brick: Brick): Boolean = brick.offsetsWithin(width, height).any { canPlace(it) }
     fun canPlace(brick: OffsetBrick): Boolean {
-        return brick.onBoard(width, height) && brick.positionList().all { !board[it.x + it.y * width] }
+        return brick.onBoard(width, height) && brick.positionList()
+            .all { !board[it.x + it.y * width] }
     }
 
     private fun differentBlocksAround(index: Int): Int {
@@ -57,13 +58,12 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
     }
 
     fun evaluate(): Float {
-        val freeBlocks = board.count { !it }
-        val (blockGrades, freedomGrades, borderLength) = grades()
+//        val freeBlocks = board.count { !it }
+        val (blockGrades, freedomGrades, _) = grades()
 //        if (score > movesScore) {
 //            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
 //        }
         var score = 0
-        val grades = grades()
         score += freedomGrades[0] * 3
         score += freedomGrades[1] * 2
         score += freedomGrades[2] * 1

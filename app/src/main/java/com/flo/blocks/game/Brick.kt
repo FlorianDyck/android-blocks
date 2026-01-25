@@ -80,7 +80,13 @@ open class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
     fun offset(offset: IntOffset) = OffsetBrick(offset, this)
 
     fun offsetsWithin(width: Int, height: Int): List<OffsetBrick> {
-        return (0..height - this.height).flatMap { y -> (0..width - this.width).map { x -> offset(IntOffset(x, y)) } }
+        return (0..height - this.height).flatMap { y ->
+            (0..width - this.width).map { x ->
+                offset(
+                    IntOffset(x, y)
+                )
+            }
+        }
     }
 
     /**
@@ -93,11 +99,13 @@ open class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
      */
     fun minCellsToClear(boardWidth: Int, boardHeight: Int): Int {
         // Find which local rows and columns actually contain brick cells
-        val activeRows = (0 until height).filter { y -> (0 until width).any { x -> getPosition(x, y) } }
-        val activeCols = (0 until width).filter { x -> (0 until height).any { y -> getPosition(x, y) } }
+        val activeRows =
+            (0 until height).filter { y -> (0 until width).any { x -> getPosition(x, y) } }
+        val activeCols =
+            (0 until width).filter { x -> (0 until height).any { y -> getPosition(x, y) } }
 
         var minCells = Int.MAX_VALUE
-        
+
         // Use bitmaps to iterate through every possible combination of rows and columns
         val rowSubsets = 1 shl activeRows.size
         val colSubsets = 1 shl activeCols.size
@@ -107,7 +115,7 @@ open class Brick(val width: Int, val height: Int, val positions: BooleanArray) {
             for (i in activeRows.indices) {
                 if (((rMask shr i) and 1) == 1) selectedRows.add(activeRows[i])
             }
-            
+
             for (cMask in 0 until colSubsets) {
                 val selectedCols = mutableSetOf<Int>()
                 for (i in activeCols.indices) {

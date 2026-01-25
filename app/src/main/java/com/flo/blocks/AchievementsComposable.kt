@@ -2,14 +2,14 @@ package com.flo.blocks
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,8 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.flo.blocks.data.BlockAchievement
-import com.flo.blocks.game.CANONICAL_BRICKS
 import com.flo.blocks.game.Brick
+import com.flo.blocks.game.CANONICAL_BRICKS
 import com.flo.blocks.game.ColoredBrick
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +112,9 @@ fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean, minimalis
                     Text(
                         text = "$maxLines / ${brick.width + brick.height} lines cleared",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = if (maxLines > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        color = if (maxLines > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = 0.5f
+                        )
                     )
                     if (isNarrow && comeAndGone) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -151,6 +153,7 @@ private fun ComeAndGoneBadge() {
         )
     }
 }
+
 @Composable
 private fun MinimalistBadge() {
     Surface(

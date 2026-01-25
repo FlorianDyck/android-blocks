@@ -198,7 +198,7 @@ fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntS
         Surface(color = MaterialTheme.colorScheme.errorContainer) {
             Text(
                 "Computations for boards with more than 64 positions are much slower and use more battery. " +
-                "There are currently ${width.intValue * height.intValue} = ${width.intValue} (Width) * ${height.intValue} (Height) positions.",
+                        "There are currently ${width.intValue * height.intValue} = ${width.intValue} (Width) * ${height.intValue} (Height) positions.",
                 Modifier.padding(8.dp)
             )
         }
@@ -229,7 +229,7 @@ fun NewGameOptions(
 
                 val width = remember { mutableIntStateOf(currentBoard.width) }
                 val height = remember { mutableIntStateOf(currentBoard.height) }
-                
+
                 SizeOptions(currentBoard, width, height)
 
                 Row(
@@ -257,8 +257,12 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Gameplay", Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
-                
+                Text(
+                    "Gameplay",
+                    Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.titleLarge
+                )
+
                 Button(
                     onClick = openAchievements,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -269,7 +273,11 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                 var computeEnabled by remember {
                     mutableStateOf(computeViewModel.computeEnabled)
                 }
-                SelectPossibleValue("Computation", computeEnabled, GameViewModel.ComputeEnabled.entries) {
+                SelectPossibleValue(
+                    "Computation",
+                    computeEnabled,
+                    GameViewModel.ComputeEnabled.entries
+                ) {
                     computeEnabled = it
                 }
                 var undoEnabled by remember {
@@ -303,13 +311,15 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                 val anySettingChange by remember {
                     derivedStateOf {
                         computeViewModel.computeEnabled != computeEnabled ||
-                        computeViewModel.undoEnabled != undoEnabled ||
-                        computeViewModel.showUndoIfEnabled.value != showBackIfEnabled ||
-                        computeViewModel.showNewGameButton.value != showNewGameButton
+                                computeViewModel.undoEnabled != undoEnabled ||
+                                computeViewModel.showUndoIfEnabled.value != showBackIfEnabled ||
+                                computeViewModel.showNewGameButton.value != showNewGameButton
                     }
                 }
                 Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
