@@ -21,17 +21,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.derivedStateOf
@@ -241,11 +246,29 @@ fun NewGameOptions(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close: () -> Unit) {
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Box(Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {
+    Scaffold(
+            topBar = {
+                TopAppBar(
+                        title = { Text(stringResource(R.string.settings)) },
+                        navigationIcon = {
+                            IconButton(onClick = close) {
+                                Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        stringResource(R.string.achievement_back)
+                                )
+                            }
+                        }
+                )
+            }
+    ) { padding ->
+        Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+        ) {
             // Hoist state variables
             var computeEnabled by remember { mutableStateOf(computeViewModel.computeEnabled) }
             var undoEnabled by remember { mutableStateOf(computeViewModel.undoEnabled) }
@@ -294,7 +317,10 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                             computeEnabled,
                             GameViewModel.ComputeEnabled.entries,
                             label = { stringResource(computeLabels[it]!!) }
-                    ) { computeEnabled = it }
+                    ) {
+                        computeEnabled = it
+                        computeViewModel.computeEnabled = it
+                    }
 
                     val undoLabels =
                             mapOf(
@@ -308,17 +334,26 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                             undoEnabled,
                             GameViewModel.UndoEnabled.entries,
                             label = { stringResource(undoLabels[it]!!) }
-                    ) { undoEnabled = it }
+                    ) {
+                        undoEnabled = it
+                        computeViewModel.undoEnabled = it
+                    }
 
                     SelectOption(
                             stringResource(R.string.settings_show_undo_button),
                             showBackIfEnabled,
                             undoEnabled != GameViewModel.UndoEnabled.Never
-                    ) { showBackIfEnabled = it }
+                    ) {
+                        showBackIfEnabled = it
+                        computeViewModel.showUndoIfEnabled.value = it
+                    }
                     SelectOption(
                             stringResource(R.string.settings_show_new_game_button),
                             showNewGameButton
-                    ) { showNewGameButton = it }
+                    ) {
+                        showNewGameButton = it
+                        computeViewModel.showNewGameButton.value = it
+                    }
 
                     Text(
                             stringResource(R.string.settings_achievements),
@@ -342,21 +377,33 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                             achievementShowMinimalist,
                             AchievementFilter.entries,
                             label = { stringResource(filterLabels[it]!!) }
-                    ) { achievementShowMinimalist = it }
+                    ) {
+                        achievementShowMinimalist = it
+                        computeViewModel.achievementShowMinimalist = it
+                    }
                     SelectPossibleValue(
                             stringResource(R.string.settings_show_come_and_gone),
                             achievementShowComeAndGone,
                             AchievementFilter.entries,
                             label = { stringResource(filterLabels[it]!!) }
-                    ) { achievementShowComeAndGone = it }
+                    ) {
+                        achievementShowComeAndGone = it
+                        computeViewModel.achievementShowComeAndGone = it
+                    }
                     SelectOption(
                             stringResource(R.string.settings_show_new_record),
                             achievementShowNewRecord
-                    ) { achievementShowNewRecord = it }
+                    ) {
+                        achievementShowNewRecord = it
+                        computeViewModel.achievementShowNewRecord = it
+                    }
                     SelectOption(
                             stringResource(R.string.settings_show_cleared_lines),
                             achievementShowClearedLines
-                    ) { achievementShowClearedLines = it }
+                    ) {
+                        achievementShowClearedLines = it
+                        computeViewModel.achievementShowClearedLines = it
+                    }
 
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -367,7 +414,11 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                         )
                         androidx.compose.material3.Slider(
                                 value = 1f - achievementAlpha,
-                                onValueChange = { achievementAlpha = 1f - it },
+                                onValueChange = {
+                                    val newAlpha = 1f - it
+                                    achievementAlpha = newAlpha
+                                    computeViewModel.setAchievementAlpha(newAlpha)
+                                },
                                 valueRange = 0f..0.9f,
                                 modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
                         )
@@ -386,53 +437,6 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                                     .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                     ) { OptionsPreviewBoard(maxWidth, maxHeight, achievementAlpha) }
-                }
-
-                val save = {
-                    computeViewModel.computeEnabled = computeEnabled
-                    computeViewModel.undoEnabled = undoEnabled
-                    computeViewModel.showUndoIfEnabled.value = showBackIfEnabled
-                    computeViewModel.showNewGameButton.value = showNewGameButton
-                    computeViewModel.achievementShowMinimalist = achievementShowMinimalist
-                    computeViewModel.achievementShowComeAndGone = achievementShowComeAndGone
-                    computeViewModel.achievementShowNewRecord = achievementShowNewRecord
-                    computeViewModel.achievementShowClearedLines = achievementShowClearedLines
-                    computeViewModel.setAchievementAlpha(achievementAlpha)
-                }
-                val anySettingChange by remember {
-                    derivedStateOf {
-                        computeViewModel.computeEnabled != computeEnabled ||
-                                computeViewModel.undoEnabled != undoEnabled ||
-                                computeViewModel.showUndoIfEnabled.value != showBackIfEnabled ||
-                                computeViewModel.showNewGameButton.value != showNewGameButton ||
-                                computeViewModel.achievementShowMinimalist !=
-                                        achievementShowMinimalist ||
-                                computeViewModel.achievementShowComeAndGone !=
-                                        achievementShowComeAndGone ||
-                                computeViewModel.achievementShowNewRecord !=
-                                        achievementShowNewRecord ||
-                                computeViewModel.achievementShowClearedLines !=
-                                        achievementShowClearedLines ||
-                                computeViewModel.achievementAlpha.value != achievementAlpha
-                    }
-                }
-                // Fixed footer buttons
-                Row(
-                        Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(close, Modifier.weight(1f)) {
-                        Text(text = stringResource(R.string.cancel))
-                    }
-                    Button(
-                            {
-                                save()
-                                close()
-                            },
-                            Modifier.weight(1f),
-                            anySettingChange
-                    ) { Text(text = stringResource(R.string.save)) }
                 }
             }
         }
