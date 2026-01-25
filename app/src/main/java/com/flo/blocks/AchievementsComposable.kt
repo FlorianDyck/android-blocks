@@ -71,19 +71,15 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
         ) {
             items(CANONICAL_BRICKS) { brick ->
                 val achievement = achievementsMap[brick]
-                AchievementItem(
-                        brick = brick,
-                        maxLines = achievement?.maxLinesCleared ?: 0,
-                        comeAndGone = achievement?.comeAndGone ?: false,
-                        minimalist = achievement?.minimalist ?: false
-                )
+                AchievementItem(brick = brick, achievement = achievement)
             }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean, minimalist: Boolean) {
+fun AchievementItem(brick: Brick, achievement: BlockAchievement?) {
     Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
@@ -102,6 +98,7 @@ fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean, minimalis
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
+                    val maxLines = achievement?.maxLinesCleared ?: 0
                     Text(
                             text =
                                     if (maxLines > 0)
@@ -122,53 +119,99 @@ fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean, minimalis
                                     if (maxLines > 0) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
-                    if (isNarrow && comeAndGone) {
+
+                    if (isNarrow && achievement != null) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ComeAndGoneBadge()
-                            if (minimalist) MinimalistBadge()
-                        }
+                        AchievementBadges(achievement, Modifier.fillMaxWidth())
                     }
                 }
 
-                if (!isNarrow && comeAndGone) {
-                    Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ComeAndGoneBadge()
-                        if (minimalist) MinimalistBadge()
-                    }
+                if (!isNarrow && achievement != null) {
+                    AchievementBadges(achievement, Modifier.weight(1f))
                 }
             }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun ComeAndGoneBadge() {
-    Surface(
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            shape = MaterialTheme.shapes.small
+private fun AchievementBadges(achievement: BlockAchievement, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = modifier
     ) {
-        Text(
-                text = stringResource(R.string.badge_come_and_gone),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall
-        )
+        if (achievement.comeAndGone)
+                Badge(
+                        stringResource(R.string.badge_come_and_gone),
+                        MaterialTheme.colorScheme.tertiaryContainer,
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                )
+        if (achievement.minimalist)
+                Badge(
+                        stringResource(R.string.badge_minimalist),
+                        MaterialTheme.colorScheme.secondaryContainer,
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                )
+
+        // Corner Achievements
+        if (achievement.aroundTheCorner) {
+            Badge(
+                    stringResource(R.string.badge_around_the_corner),
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (achievement.largeWideCorner)
+                Badge(
+                        stringResource(R.string.badge_large_wide_corner),
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                )
+        if (achievement.hugeCorner)
+                Badge(
+                        stringResource(R.string.badge_huge_corner),
+                        MaterialTheme.colorScheme.errorContainer,
+                        MaterialTheme.colorScheme.onErrorContainer
+                )
+        if (achievement.largeCorner && !achievement.largeWideCorner && !achievement.hugeCorner)
+                Badge(
+                        stringResource(R.string.badge_large_corner),
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                )
+
+        if (achievement.wideCorner && !achievement.largeWideCorner)
+                Badge(
+                        stringResource(R.string.badge_wide_corner),
+                        MaterialTheme.colorScheme.secondaryContainer,
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                )
+        if (achievement.notEvenAround)
+                Badge(
+                        stringResource(R.string.badge_not_even_around),
+                        MaterialTheme.colorScheme.tertiaryContainer,
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                )
     }
 }
 
 @Composable
-private fun MinimalistBadge() {
+private fun Badge(
+        text: String,
+        containerColor: androidx.compose.ui.graphics.Color,
+        contentColor: androidx.compose.ui.graphics.Color
+) {
     Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            shape = MaterialTheme.shapes.small
+            color = containerColor,
+            contentColor = contentColor,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.padding(bottom = 4.dp) // Gap
     ) {
         Text(
-                text = stringResource(R.string.badge_minimalist),
+                text = text,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelSmall
         )

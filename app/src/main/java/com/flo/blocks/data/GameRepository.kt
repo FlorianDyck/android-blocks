@@ -7,8 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 open class GameRepository(
-    private val gameDao: GameDao,
-    private val blockAchievementDao: BlockAchievementDao
+        private val gameDao: GameDao,
+        private val blockAchievementDao: BlockAchievementDao
 ) {
 
     private var currentGameId: Int? = null
@@ -32,19 +32,25 @@ open class GameRepository(
                 }
                 val currentMax = canonicalAchievements[canonicalBrick] ?: 0
                 canonicalAchievements[canonicalBrick] =
-                    maxOf(currentMax, achievement.maxLinesCleared)
+                        maxOf(currentMax, achievement.maxLinesCleared)
             }
 
             if (needsMigration) {
                 blockAchievementDao.clearAllAchievements()
                 for ((brick, maxLines) in canonicalAchievements) {
                     blockAchievementDao.upsertAchievement(
-                        BlockAchievement(
-                            brick,
-                            maxLines,
-                            false,
-                            false
-                        )
+                            BlockAchievement(
+                                    brick,
+                                    maxLines,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false,
+                                    false
+                            )
                     )
                 }
             }
@@ -68,78 +74,57 @@ open class GameRepository(
 
     open suspend fun getHistory(): List<GameState> {
         val gameId = currentGameId ?: return emptyList()
-        return withContext(Dispatchers.IO) {
-            gameDao.getHistory(gameId).map { it.data }
-        }
+        return withContext(Dispatchers.IO) { gameDao.getHistory(gameId).map { it.data } }
     }
 
     open suspend fun newGame() {
-        withContext(Dispatchers.IO) {
-            currentGameId = gameDao.insertGame(Game()).toInt()
-        }
+        withContext(Dispatchers.IO) { currentGameId = gameDao.insertGame(Game()).toInt() }
     }
 
     open suspend fun getBlockAchievement(brick: Brick): BlockAchievement? {
-        return withContext(Dispatchers.IO) {
-            blockAchievementDao.getAchievement(brick.canonical)
-        }
+        return withContext(Dispatchers.IO) { blockAchievementDao.getAchievement(brick.canonical) }
     }
 
-    open suspend fun updateBlockAchievement(brick: Brick, lines: Int) {
+    open suspend fun updateAchievement(newAchievementData: BlockAchievement) {
         withContext(Dispatchers.IO) {
-            val canonicalBrick = brick.canonical
+            val canonicalBrick = newAchievementData.brick.canonical
             val current = blockAchievementDao.getAchievement(canonicalBrick)
-            val currentRecord = current?.maxLinesCleared ?: 0
-            if (lines > currentRecord) {
-                blockAchievementDao.upsertAchievement(
-                    BlockAchievement(
-                        canonicalBrick,
-                        lines,
-                        current?.comeAndGone ?: false,
-                        current?.minimalist ?: false
-                    )
-                )
-            }
-        }
-    }
 
-    open suspend fun markComeAndGone(brick: Brick) {
-        withContext(Dispatchers.IO) {
-            val canonicalBrick = brick.canonical
-            val current = blockAchievementDao.getAchievement(canonicalBrick)
-            if (current == null || !current.comeAndGone) {
-                blockAchievementDao.upsertAchievement(
-                    BlockAchievement(
-                        canonicalBrick,
-                        current?.maxLinesCleared ?: 0,
-                        true,
-                        current?.minimalist ?: false
-                    )
-                )
-            }
-        }
-    }
+            val newMaxLines =
+                    maxOf(current?.maxLinesCleared ?: 0, newAchievementData.maxLinesCleared)
+            val newComeAndGone = (current?.comeAndGone ?: false) || newAchievementData.comeAndGone
+            val newMinimalist = (current?.minimalist ?: false) || newAchievementData.minimalist
+            val newAroundTheCorner =
+                    (current?.aroundTheCorner ?: false) || newAchievementData.aroundTheCorner
+            val newLargeCorner = (current?.largeCorner ?: false) || newAchievementData.largeCorner
+            val newHugeCorner = (current?.hugeCorner ?: false) || newAchievementData.hugeCorner
+            val newWideCorner = (current?.wideCorner ?: false) || newAchievementData.wideCorner
+            val newNotEvenAround =
+                    (current?.notEvenAround ?: false) || newAchievementData.notEvenAround
+            val newLargeWideCorner =
+                    (current?.largeWideCorner ?: false) || newAchievementData.largeWideCorner
 
-    open suspend fun markMinimalist(brick: Brick) {
-        withContext(Dispatchers.IO) {
-            val canonicalBrick = brick.canonical
-            val current = blockAchievementDao.getAchievement(canonicalBrick)
-            if (current == null || !current.minimalist) {
-                blockAchievementDao.upsertAchievement(
+            val mergedAchievement =
                     BlockAchievement(
-                        canonicalBrick,
-                        current?.maxLinesCleared ?: 0,
-                        current?.comeAndGone ?: false,
-                        true
+                            canonicalBrick,
+                            newMaxLines,
+                            newComeAndGone,
+                            newMinimalist,
+                            newAroundTheCorner,
+                            newLargeCorner,
+                            newHugeCorner,
+                            newWideCorner,
+                            newNotEvenAround,
+                            newLargeWideCorner
                     )
-                )
+
+            if (current != mergedAchievement) {
+                blockAchievementDao.upsertAchievement(mergedAchievement)
             }
         }
     }
 
     open suspend fun getAllAchievements(): List<BlockAchievement> {
-        return withContext(Dispatchers.IO) {
-            blockAchievementDao.getAllAchievements()
-        }
+        return withContext(Dispatchers.IO) { blockAchievementDao.getAllAchievements() }
     }
 }

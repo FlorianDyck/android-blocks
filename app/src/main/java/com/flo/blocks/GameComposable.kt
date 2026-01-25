@@ -73,20 +73,11 @@ import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun Block(color: Color, size: Dp, content: @Composable () -> Unit = {}) {
-    Box(
-        Modifier
-            .size(size)
-            .padding(1f.dp)
-    ) {
+    Box(Modifier.size(size).padding(1f.dp)) {
         Box(
-            Modifier
-                .clip(RoundedCornerShape(5))
-                .background(color)
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            content()
-        }
+                Modifier.clip(RoundedCornerShape(5)).background(color).fillMaxSize(),
+                contentAlignment = Alignment.Center
+        ) { content() }
     }
 }
 
@@ -95,7 +86,7 @@ fun vibrateCallback(context: Context): () -> Unit {
         val vibratorManager =
                 context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
         val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
-        return  {
+        return {
             vibratorManager.cancel()
             vibratorManager.vibrate(CombinedVibration.createParallel(effect))
         }
@@ -139,31 +130,27 @@ fun computeLayout(board: ColoredBoard): Pair<Boolean, Int> {
     val vertical = size.height >= size.width
 
     val boardSize = max(board.width, board.height)
-    val blockSize = min(
-        max(size.width, size.height) / (boardSize + 12),
-        min(size.width, size.height) / max(boardSize + 1, 11)
-    )
+    val blockSize =
+            min(
+                    max(size.width, size.height) / (boardSize + 12),
+                    min(size.width, size.height) / max(boardSize + 1, 11)
+            )
     return Pair(vertical, blockSize)
 }
 
 @Composable
 fun AlignInDirection(
-    vertical: Boolean,
-    arrangement: HorizontalOrVertical,
-    content: @Composable () -> Unit
+        vertical: Boolean,
+        arrangement: HorizontalOrVertical,
+        content: @Composable () -> Unit
 ) {
     if (vertical) {
         Column(
-            verticalArrangement = arrangement,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            content()
-        }
+                verticalArrangement = arrangement,
+                horizontalAlignment = Alignment.CenterHorizontally
+        ) { content() }
     } else {
-        Row(
-            horizontalArrangement = arrangement,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(horizontalArrangement = arrangement, verticalAlignment = Alignment.CenterVertically) {
             content()
         }
     }
@@ -178,7 +165,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val lastGameState: GameState? by gameViewModel.lastGameState.asStateFlow().collectAsState()
 
     val suggestion by gameViewModel.nextMove.asStateFlow().collectAsState()
-//    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
+    //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
     var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
@@ -212,24 +199,26 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             }
     val selected by
             remember(game, hovering) {
-        derivedStateOf {
-            hovering?.let { game.board.canPlace(it) } ?: false
-        }
+        derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false }
     }
 
     @Composable
     fun Board(board: ColoredBoard, blockSize: Dp) {
-        Column(Modifier.onGloballyPositioned { coordinates ->
-            boardPosition = coordinates.positionInRoot()
-        }) {
+        Column(
+                Modifier.onGloballyPositioned { coordinates ->
+                    boardPosition = coordinates.positionInRoot()
+                }
+        ) {
             for (y in 0 until board.height) {
                 Row {
                     for (x in 0 until board.width) {
-                        val color = if (
-                            suggestion?.getPosition(x, y) == true ||
-                            (selected && hovering!!.getPosition(x, y))
-                        ) Color.Gray else board[x, y].color
-                        Block(color, blockSize) //{ Text("$x,$y") }
+                        val color =
+                                if (suggestion?.getPosition(x, y) == true ||
+                                                (selected && hovering!!.getPosition(x, y))
+                                )
+                                        Color.Gray
+                                else board[x, y].color
+                        Block(color, blockSize) // { Text("$x,$y") }
                     }
                 }
             }
@@ -242,205 +231,222 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
         val density = LocalDensity.current.density
         val vibrate = vibrateCallback(LocalContext.current)
         Box(
-            if (game.bricks[i] == null) {
-                Modifier
-            } else {
-                Modifier
-                    .zIndex(if (offset?.first == i) 1f else 0f)
-                    .offset {
-                        if (offset?.first == i) {
-                            offset!!.second.round()
+                if (game.bricks[i] == null) {
+                            Modifier
                         } else {
-                            IntOffset.Zero
+                            Modifier.zIndex(if (offset?.first == i) 1f else 0f)
+                                    .offset {
+                                        if (offset?.first == i) {
+                                            offset!!.second.round()
+                                        } else {
+                                            IntOffset.Zero
+                                        }
+                                    }
+                                    .draggable2D(
+                                            state =
+                                                    rememberDraggable2DState { delta ->
+                                                        if (offset?.first == i)
+                                                                offset =
+                                                                        Pair(
+                                                                                i,
+                                                                                offset!!.second +
+                                                                                        delta
+                                                                        )
+                                                    },
+                                            onDragStarted = {
+                                                if (offset == null)
+                                                        offset =
+                                                                Pair(
+                                                                        i,
+                                                                        Offset(
+                                                                                0f,
+                                                                                it.y -
+                                                                                        (2 +
+                                                                                                5 +
+                                                                                                game.bricks[
+                                                                                                                i]!!
+                                                                                                        .brick
+                                                                                                        .height) *
+                                                                                                blockSize *
+                                                                                                density /
+                                                                                                2
+                                                                        )
+                                                                )
+                                            },
+                                            onDragStopped = {
+                                                if (offset?.first == i) {
+                                                    if (selected) {
+                                                        val cleared =
+                                                                gameViewModel.placeBrick(
+                                                                        i,
+                                                                        hovering!!.offset
+                                                                )
+                                                        if (cleared > 0) vibrate()
+                                                        gameViewModel.canUndo()
+                                                    }
+                                                    offset = null
+                                                    blockPosition = null
+                                                }
+                                            }
+                                    )
                         }
-                    }
-                    .draggable2D(
-                        state = rememberDraggable2DState { delta ->
-                            if (offset?.first == i) offset = Pair(i, offset!!.second + delta)
-                        },
-                        onDragStarted = {
-                            if (offset == null) offset = Pair(
-                                i, Offset(
-                                    0f,
-                                    it.y - (2 + 5 + game.bricks[i]!!.brick.height) * blockSize * density / 2
-                                )
-                            )
-                        },
-                        onDragStopped = {
-                            if (offset?.first == i) {
-                                if (selected) {
-                                    val cleared = gameViewModel.placeBrick(i, hovering!!.offset)
-                                    if (cleared > 0) vibrate()
-                                    gameViewModel.canUndo()
-                                }
-                                offset = null
-                                blockPosition = null
-                            }
-                        }
-                    )
-            }.size((5 * blockSize).dp),
-            contentAlignment = Alignment.Center
+                        .size((5 * blockSize).dp),
+                contentAlignment = Alignment.Center
         ) {
             Box(
-                Modifier.onGloballyPositioned { coordinates ->
-                    if (offset?.first == i) {
-                        blockPosition = coordinates.positionInRoot()
+                    Modifier.onGloballyPositioned { coordinates ->
+                        if (offset?.first == i) {
+                            blockPosition = coordinates.positionInRoot()
+                        }
                     }
-                }
-            ) {
-                brick?.let { Brick(it, blockSize.dp) }
-            }
+            ) { brick?.let { Brick(it, blockSize.dp) } }
         }
     }
-
 
     val showNewGameOptions = remember { mutableStateOf(false) }
 
     if (showNewGameOptions.value) {
         NewGameOptions(
-            game.board,
-            onCancel = { showNewGameOptions.value = false },
-            onConfirm = { width, height ->
-                gameViewModel.saveBoardSize(width, height)
-                gameViewModel.newGame(width, height)
-                showNewGameOptions.value = false
-            }
+                game.board,
+                onCancel = { showNewGameOptions.value = false },
+                onConfirm = { width, height ->
+                    gameViewModel.saveBoardSize(width, height)
+                    gameViewModel.newGame(width, height)
+                    showNewGameOptions.value = false
+                }
         )
     }
 
     Scaffold(
-        floatingActionButton = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val showUndo by gameViewModel.showUndo.collectAsState(false)
-                AnimatedVisibility(visible = showUndo) {
-                    FloatingActionButton(onClick = { gameViewModel.undo() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.undo))
+            floatingActionButton = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val showUndo by gameViewModel.showUndo.collectAsState(false)
+                    AnimatedVisibility(visible = showUndo) {
+                        FloatingActionButton(onClick = { gameViewModel.undo() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.undo))
+                        }
                     }
-                }
-                val showCompute by gameViewModel.showCompute.collectAsState()
-                AnimatedVisibility(visible = showCompute && suggestion == null) {
-                    FloatingActionButton(
-                        onClick = {
-                            gameViewModel.startComputation(
-                                game.bricks.filterNotNull().map { it.brick }
-                            )
-                        },
-                    ) {
-                        Icon(Icons.Filled.Search, stringResource(R.string.hint))
+                    val showCompute by gameViewModel.showCompute.collectAsState()
+                    AnimatedVisibility(visible = showCompute && suggestion == null) {
+                        FloatingActionButton(
+                                onClick = {
+                                    gameViewModel.startComputation(
+                                            game.bricks.filterNotNull().map { it.brick }
+                                    )
+                                },
+                        ) { Icon(Icons.Filled.Search, stringResource(R.string.hint)) }
                     }
-                }
-                val showNewGameButton by gameViewModel.showNewGameButton.collectAsState()
-                AnimatedVisibility(visible = showNewGameButton) {
-                    FloatingActionButton(onClick = { showNewGameOptions.value = true }) {
-                        Icon(Icons.Filled.Add, stringResource(R.string.new_game))
+                    val showNewGameButton by gameViewModel.showNewGameButton.collectAsState()
+                    AnimatedVisibility(visible = showNewGameButton) {
+                        FloatingActionButton(onClick = { showNewGameOptions.value = true }) {
+                            Icon(Icons.Filled.Add, stringResource(R.string.new_game))
+                        }
                     }
-                }
-                FloatingActionButton(onClick = openSettings) {
-                    Icon(Icons.Filled.Settings, stringResource(R.string.settings))
+                    FloatingActionButton(onClick = openSettings) {
+                        Icon(Icons.Filled.Settings, stringResource(R.string.settings))
+                    }
                 }
             }
-        }
     ) { contentPadding ->
         Box(
-            Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .fillMaxSize()
-                .padding(contentPadding),
-            contentAlignment = Alignment.Center
+                Modifier.background(MaterialTheme.colorScheme.background)
+                        .fillMaxSize()
+                        .padding(contentPadding),
+                contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = stringResource(R.string.score, game.score),
-                        style = MaterialTheme.typography.titleMedium
+                            text = stringResource(R.string.score, game.score),
+                            style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = stringResource(R.string.highscore, highscore),
-                        style = MaterialTheme.typography.titleMedium
+                            text = stringResource(R.string.highscore, highscore),
+                            style = MaterialTheme.typography.titleMedium
                     )
                 }
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
-                        progress = { computationProgress },
-                        modifier = Modifier.width((game.board.width * blockSize).dp),
+                            progress = { computationProgress },
+                            modifier = Modifier.width((game.board.width * blockSize).dp),
                     )
                 }
 
                 val spaced = Arrangement.spacedBy(blockSize.dp / 2)
-                val Content = @Composable { game: GameState ->
-                    AlignInDirection(vertical, spaced) {
-                        Board(game.board, blockSize.dp)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(
-                                Modifier
-                                    .height((5 * blockSize).dp)
-                                    .zIndex(if (offset?.first == 2) 0f else 1f),
-                                horizontalArrangement = spaced,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Blocks(0, game.bricks[0])
-                                Blocks(1, game.bricks[1])
-                            }
-                            Row(
-                                Modifier.height((5 * blockSize).dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Blocks(2, game.bricks[2])
+                val Content =
+                        @Composable
+                        { game: GameState ->
+                            AlignInDirection(vertical, spaced) {
+                                Board(game.board, blockSize.dp)
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Row(
+                                            Modifier.height((5 * blockSize).dp)
+                                                    .zIndex(if (offset?.first == 2) 0f else 1f),
+                                            horizontalArrangement = spaced,
+                                            verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Blocks(0, game.bricks[0])
+                                        Blocks(1, game.bricks[1])
+                                    }
+                                    Row(
+                                            Modifier.height((5 * blockSize).dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                    ) { Blocks(2, game.bricks[2]) }
+                                }
                             }
                         }
-                    }
-                }
                 Box {
                     Content(game)
                     if (backProgress > 0 && lastGameState != null) {
                         Box(
-                            Modifier
-                                .alpha(backProgress)
-                                .background(MaterialTheme.colorScheme.background)
-                        ) {
-                            Content(lastGameState!!)
-                        }
+                                Modifier.alpha(backProgress)
+                                        .background(MaterialTheme.colorScheme.background)
+                        ) { Content(lastGameState!!) }
                     }
                 }
             }
             if (lost) {
                 Box(
-                    Modifier
-                        .matchParentSize()
-                        .alpha(0.5f)
-                        .background(MaterialTheme.colorScheme.background)
+                        Modifier.matchParentSize()
+                                .alpha(0.5f)
+                                .background(MaterialTheme.colorScheme.background)
                 )
             }
             if (lost) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(10f)
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize().zIndex(10f)
                 ) {
                     Text(
-                        text = if (game.score > highscore) stringResource(R.string.new_highscore) else stringResource(R.string.game_over),
-                        style = MaterialTheme.typography.displayMedium,
-                        color = if (game.score > highscore) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
+                            text =
+                                    if (game.score > highscore)
+                                            stringResource(R.string.new_highscore)
+                                    else stringResource(R.string.game_over),
+                            style = MaterialTheme.typography.displayMedium,
+                            color =
+                                    if (game.score > highscore) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = stringResource(R.string.score, game.score),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground
+                            text = stringResource(R.string.score, game.score),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = stringResource(R.string.highscore, highscore),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                            text = stringResource(R.string.highscore, highscore),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Button(onClick = {
-                            gameViewModel.newGame()
-                            gameViewModel.canUndo()
-                        }) { Text(stringResource(R.string.play_again)) }
+                        Button(
+                                onClick = {
+                                    gameViewModel.newGame()
+                                    gameViewModel.canUndo()
+                                }
+                        ) { Text(stringResource(R.string.play_again)) }
                         Button(onClick = { showNewGameOptions.value = true }) {
                             Text(stringResource(R.string.customize))
                         }
@@ -449,11 +455,8 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             }
 
             AnimatedVisibility(
-                visible = achievementMessage != null,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 100.dp)
-                    .zIndex(20f)
+                    visible = achievementMessage != null,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp).zIndex(20f)
             ) {
                 achievementMessage?.let { achievement ->
                     val achievementAlpha by gameViewModel.achievementAlpha.collectAsState()
@@ -474,27 +477,46 @@ fun AchievementNotification(
     val congratulations = stringArrayResource(R.array.congratulations)
 
     val parts = mutableListOf<String>()
-    if (achievement.isMinimalist)
-        parts.add(stringResource(R.string.notify_minimalist))
-    else if (achievement.blockRemoved)
-        parts.add(stringResource(R.string.notify_come_and_gone))
+    if (achievement.isMinimalist) parts.add(stringResource(R.string.notify_minimalist))
+    else if (achievement.blockRemoved) parts.add(stringResource(R.string.notify_come_and_gone))
 
     if (achievement.isNewRecord)
-        parts.add(
-            stringResource(R.string.notify_new_record, achievement.cleared)
-        )
-    if (parts.isEmpty())
-        parts.add(congratulations.random())
-    if (achievement.cleared > 1)
-        parts.add(
-            stringResource(
-                R.string.notify_cleared_lines,
-                achievement.cleared
-            )
-        )
-    val message = remember(achievement) {
-        parts.joinToString(" ")
+            parts.add(stringResource(R.string.notify_new_record, achievement.cleared))
+
+    // Corner Achievements Hierarchy
+    if (achievement.largeWideCorner) {
+        parts.add(stringResource(R.string.badge_large_wide_corner))
     }
+    if (achievement.hugeCorner) {
+        parts.add(stringResource(R.string.badge_huge_corner))
+    }
+    if (achievement.notEvenAround) {
+        parts.add(stringResource(R.string.badge_not_even_around))
+    }
+
+    // Show LargeCorner only if not superseded by HugeCorner or LargeWideCorner
+    if (achievement.largeCorner && !achievement.hugeCorner && !achievement.largeWideCorner) {
+        parts.add(stringResource(R.string.badge_large_corner))
+    }
+    // Show WideCorner only if not superseded by LargeWideCorner
+    if (achievement.wideCorner && !achievement.largeWideCorner) {
+        parts.add(stringResource(R.string.badge_wide_corner))
+    }
+
+    // Show AroundTheCorner only if no specialized corner achievement is present
+    val anySpecializedCorner =
+            achievement.largeCorner ||
+                    achievement.hugeCorner ||
+                    achievement.wideCorner ||
+                    achievement.notEvenAround ||
+                    achievement.largeWideCorner
+    if (achievement.aroundTheCorner && !anySpecializedCorner) {
+        parts.add(stringResource(R.string.badge_around_the_corner))
+    }
+    if (parts.isEmpty()) parts.add(congratulations.random())
+    if (achievement.cleared > 1)
+            parts.add(stringResource(R.string.notify_cleared_lines, achievement.cleared))
+    val message = remember(achievement) { parts.joinToString(" ") }
 
     Box(
             modifier.clip(RoundedCornerShape(16.dp))

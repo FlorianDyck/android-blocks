@@ -32,29 +32,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val db = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java, "game-database"
-        ).addMigrations(
-            AppDatabase.MIGRATION_1_2,
-            AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4
-        )
-            .build()
+        val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "game-database")
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
+            ).build()
 
         setContent {
             val context = LocalContext.current
             val settingsRepository = DataStoreSettingsRepository(context)
             val gameRepository = GameRepository(db.gameDao(), db.blockAchievementDao())
 
-            val gameViewModel: GameViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        @Suppress("UNCHECKED_CAST")
-                        return GameViewModel(settingsRepository, gameRepository) as T
+            val gameViewModel: GameViewModel =
+                viewModel(factory = object : ViewModelProvider.Factory {
+                    override fun <T : ViewModel> create(
+                        modelClass: Class<T>
+                    ): T {
+                        @Suppress("UNCHECKED_CAST") return GameViewModel(
+                            settingsRepository, gameRepository
+                        ) as T
                     }
-                }
-            )
+                })
 
             var backProgress by remember { mutableFloatStateOf(0f) }
 

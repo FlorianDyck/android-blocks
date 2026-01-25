@@ -31,20 +31,15 @@ import java.util.Stack
 import kotlin.math.min
 
 class GameViewModel(
-    private val settingsRepository: SettingsRepository,
-    private val gameRepository: GameRepository
+    private val settingsRepository: SettingsRepository, private val gameRepository: GameRepository
 ) : ViewModel() {
 
     enum class ComputeEnabled {
-        Auto,
-        Button,
-        Hidden
+        Auto, Button, Hidden
     }
 
     enum class UndoEnabled {
-        Always,
-        UnlessNewBlocks,
-        Never
+        Always, UnlessNewBlocks, Never
     }
 
     var computeEnabled = ComputeEnabled.Hidden
@@ -170,7 +165,13 @@ class GameViewModel(
         val cleared: Int,
         val isNewRecord: Boolean,
         val blockRemoved: Boolean,
-        val isMinimalist: Boolean
+        val isMinimalist: Boolean,
+        val aroundTheCorner: Boolean,
+        val largeCorner: Boolean,
+        val hugeCorner: Boolean,
+        val wideCorner: Boolean,
+        val notEvenAround: Boolean,
+        val largeWideCorner: Boolean
     )
 
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
@@ -195,9 +196,7 @@ class GameViewModel(
         game.value = newState
         gameStateIndex++
 
-        viewModelScope.launch {
-            gameRepository.saveGameState(newState, gameStateIndex)
-        }
+        viewModelScope.launch { gameRepository.saveGameState(newState, gameStateIndex) }
 
         if (computeEnabled == ComputeEnabled.Auto) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
@@ -209,9 +208,7 @@ class GameViewModel(
         val currentScore = game.value.score
         if (currentScore > highscore.value && currentScore > 0) {
             highscore.value = currentScore
-            viewModelScope.launch {
-                settingsRepository.saveHighscore(currentScore)
-            }
+            viewModelScope.launch { settingsRepository.saveHighscore(currentScore) }
         }
     }
 
@@ -220,43 +217,117 @@ class GameViewModel(
         val brick = coloredBrick.brick
         val oldScore = game.value.score
 
-        val (nextState, blockRemoved, cellsCleared) = game.value.place(index, position)
+        val (nextState, blockRemoved, cellsCleared, clearedRowIndices, clearedColIndices) = game.value.place(
+            index,
+            position
+        )
         updateGameState(nextState)
 
         val cleared = game.value.score - oldScore
 
         if (cleared > 0 || blockRemoved) {
             viewModelScope.launch {
-                val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
-                val isNewRecord = cleared > currentRecord
-                val minCells =
-                    brick.minCellsToClear(game.value.board.width, game.value.board.height)
-                val isMinimalist = blockRemoved && cellsCleared == minCells
-                val isThin = min(brick.width, brick.height) == 1
-
-                if (blockRemoved) gameRepository.markComeAndGone(brick)
-                if (isNewRecord) gameRepository.updateBlockAchievement(brick, cleared)
-                if (isMinimalist) gameRepository.markMinimalist(brick)
-
-                if (
-                    (blockRemoved && achievementShowComeAndGone.shouldShow(isThin))
-                    or (isNewRecord && achievementShowNewRecord)
-                    or (isMinimalist && achievementShowMinimalist.shouldShow(isThin))
-                    or (cleared > 1 && achievementShowClearedLines)
-                ) {
-                    _achievementEvents.emit(
-                        Achievement(
-                            coloredBrick,
-                            cleared,
-                            isNewRecord,
-                            blockRemoved,
-                            isMinimalist
-                        )
-                    )
-                }
+                computeAchievements(
+                    brick,
+                    coloredBrick,
+                    cleared,
+                    blockRemoved,
+                    cellsCleared,
+                    clearedRowIndices,
+                    clearedColIndices,
+                    position
+                )
             }
         }
         return cleared
+    }
+
+    private suspend fun computeAchievements(
+        brick: Brick,
+        coloredBrick: ColoredBrick,
+        cleared: Int,
+        blockRemoved: Boolean,
+        cellsCleared: Int,
+        clearedRowIndices: List<Int>,
+        clearedColIndices: List<Int>,
+        position: IntOffset
+    ) {
+        val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
+        val isNewRecord = cleared > currentRecord
+        val minCells = brick.minCellsToClear(game.value.board.width, game.value.board.height)
+        val isMinimalist = blockRemoved && cellsCleared == minCells
+        val isThin = min(brick.width, brick.height) == 1
+
+        // Corner Achievement Logic
+        var isAroundTheCorner = false
+        var isLargeCorner = false
+        var isHugeCorner = false
+        var isWideCorner = false
+        var isNotEvenAround = false
+        var isLargeWideCorner = false
+
+        if (clearedRowIndices.isNotEmpty() && clearedColIndices.isNotEmpty()) {
+            val intersections = clearedRowIndices.flatMap { y ->
+                clearedColIndices.map { x -> IntOffset(x, y) }
+            }
+            val brickPositions = brick.positionList().map { it + position }.toSet()
+
+            if (intersections.none { it in brickPositions }) {
+                isAroundTheCorner = true
+
+                val neighbors = intersections.flatMap { intersect ->
+                        listOf(
+                            IntOffset(intersect.x - 1, intersect.y),
+                            IntOffset(intersect.x + 1, intersect.y),
+                            IntOffset(intersect.x, intersect.y - 1),
+                            IntOffset(intersect.x, intersect.y + 1)
+                        )
+                    }.toSet()
+
+                val neighborCount = neighbors.count { it in brickPositions }
+
+                if (cleared >= 3) isLargeCorner = true
+                if (cleared >= 4) isHugeCorner = true
+                if (neighborCount == 1) isWideCorner = true
+                if (neighborCount == 0) isNotEvenAround = true
+                if (cleared >= 3 && neighborCount == 1) isLargeWideCorner = true
+            }
+        }
+
+        val newAchievementData = com.flo.blocks.data.BlockAchievement(
+            brick,
+            if (isNewRecord) cleared else 0,
+            blockRemoved,
+            isMinimalist,
+            isAroundTheCorner,
+            isLargeCorner,
+            isHugeCorner,
+            isWideCorner,
+            isNotEvenAround,
+            isLargeWideCorner
+        )
+        gameRepository.updateAchievement(newAchievementData)
+
+        if ((blockRemoved && achievementShowComeAndGone.shouldShow(isThin)) or (isNewRecord && achievementShowNewRecord) or (isMinimalist && achievementShowMinimalist.shouldShow(
+                isThin
+            )) or (cleared > 1 && achievementShowClearedLines) or isAroundTheCorner
+        ) {
+            _achievementEvents.emit(
+                Achievement(
+                    coloredBrick,
+                    cleared,
+                    isNewRecord,
+                    blockRemoved,
+                    isMinimalist,
+                    isAroundTheCorner,
+                    isLargeCorner,
+                    isHugeCorner,
+                    isWideCorner,
+                    isNotEvenAround,
+                    isLargeWideCorner
+                )
+            )
+        }
     }
 
     fun newGame() {
@@ -316,14 +387,10 @@ class GameViewModel(
     }
 
     fun saveBoardSize(width: Int, height: Int) {
-        viewModelScope.launch {
-            settingsRepository.saveBoardSize(width, height)
-        }
+        viewModelScope.launch { settingsRepository.saveBoardSize(width, height) }
     }
 
-    /**
-     * locks: computationStartState, moves, nextMove, movesScore
-     */
+    /** locks: computationStartState, moves, nextMove, movesScore */
     private val mutex = Mutex()
     private var moves: List<OffsetBrick>? = null
     private var movesScore = Float.NEGATIVE_INFINITY
@@ -335,16 +402,13 @@ class GameViewModel(
     private var job: Job? = null
 
     /**
-     * forceClearBeforeLast:
-     * when there is no block removed by beginning with the latter blocks,
-     * this state could in most cases also be achieved by placing the first block first.
-     * Only exception: A cross can be cleared by placing the first block later.
-     * We are willing to accept this for a ~3 times speed increase.
+     * forceClearBeforeLast: when there is no block removed by beginning with the latter blocks,
+     * this state could in most cases also be achieved by placing the first block first. Only
+     * exception: A cross can be cleared by placing the first block later. We are willing to accept
+     * this for a ~3 times speed increase.
      */
     private suspend fun computeParallel(
-        board: Board,
-        bricks: List<Brick>,
-        previousMoves: List<OffsetBrick>
+        board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
     ) {
         val totalSteps = bricks.sumOf { it.offsetsWithin(board.width, board.height).size }
         var steps = 0
@@ -365,9 +429,7 @@ class GameViewModel(
     }
 
     private suspend fun computeSync(
-        board: Board,
-        bricks: List<Brick>,
-        previousMoves: List<OffsetBrick>
+        board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
     ) {
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
@@ -402,20 +464,15 @@ class GameViewModel(
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
             // recursively set blocks
-            computeSync(
-                newBoard,
-                remainingBricks,
-                myMoves
-            )
+            computeSync(newBoard, remainingBricks, myMoves)
         }
     }
 
     /**
-     * forceClearBeforeLast:
-     * when there is no block removed by beginning with the latter blocks,
-     * this state could in most cases also be achieved by placing the first block first.
-     * Only exception: A cross can be cleared by placing the first block later.
-     * We are willing to accept this for a ~3 times speed increase.
+     * forceClearBeforeLast: when there is no block removed by beginning with the latter blocks,
+     * this state could in most cases also be achieved by placing the first block first. Only
+     * exception: A cross can be cleared by placing the first block later. We are willing to accept
+     * this for a ~3 times speed increase.
      */
     private suspend fun computeParallelBit(
         board: BitContext.BitBoard,
@@ -478,11 +535,7 @@ class GameViewModel(
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
             // recursively set blocks
-            computeSyncBit(
-                newBoard,
-                remainingBricks,
-                myMoves
-            )
+            computeSyncBit(newBoard, remainingBricks, myMoves)
         }
     }
 
@@ -504,8 +557,7 @@ class GameViewModel(
                         if (game.value.board.width * game.value.board.height <= 64) {
                             val context = BitContext(
                                 IntOffset(
-                                    game.value.board.width,
-                                    game.value.board.height
+                                    game.value.board.width, game.value.board.height
                                 )
                             )
                             computeSyncBit(

@@ -61,6 +61,12 @@
     <string name="achievement_lines_cleared">%1$d / %2$d Zeilen entfernt</string>
     <string name="badge_come_and_gone">Da &amp; Weg</string>
     <string name="badge_minimalist">Minimalist</string>
+    <string name="badge_around_the_corner">Um die Ecke</string>
+    <string name="badge_large_corner">Große Ecke</string>
+    <string name="badge_huge_corner">Riesige Ecke</string>
+    <string name="badge_wide_corner">Breite Ecke</string>
+    <string name="badge_not_even_around">Nicht mal in der Nähe</string>
+    <string name="badge_large_wide_corner">Große, breite Ecke</string>
 
     <!-- Achievement Notifications -->
     <string name="notify_minimalist">Minimalist! Nicht mehr als absolut notwendig.</string>

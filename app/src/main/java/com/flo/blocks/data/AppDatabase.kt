@@ -24,21 +24,15 @@ data class Game(
 )
 
 @Entity(
-    tableName = "game_states",
-    primaryKeys = ["gameId", "stateIndex"],
-    foreignKeys = [
-        ForeignKey(
-            entity = Game::class,
-            parentColumns = ["gameId"],
-            childColumns = ["gameId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ]
+    tableName = "game_states", primaryKeys = ["gameId", "stateIndex"], foreignKeys = [ForeignKey(
+        entity = Game::class,
+        parentColumns = ["gameId"],
+        childColumns = ["gameId"],
+        onDelete = ForeignKey.CASCADE
+    )]
 )
 data class GameStateEntity(
-    val gameId: Int,
-    val stateIndex: Int,
-    val data: GameState // Will be converted to JSON
+    val gameId: Int, val stateIndex: Int, val data: GameState // Will be converted to JSON
 )
 
 @Entity(tableName = "block_achievements")
@@ -46,7 +40,13 @@ data class BlockAchievement(
     @PrimaryKey val brick: Brick,
     val maxLinesCleared: Int = 0,
     val comeAndGone: Boolean = false,
-    val minimalist: Boolean = false
+    val minimalist: Boolean = false,
+    val aroundTheCorner: Boolean = false,
+    val largeCorner: Boolean = false,
+    val hugeCorner: Boolean = false,
+    val wideCorner: Boolean = false,
+    val notEvenAround: Boolean = false,
+    val largeWideCorner: Boolean = false
 )
 
 class BrickConverter {
@@ -124,7 +124,7 @@ interface BlockAchievementDao {
 
 @Database(
     entities = [Game::class, GameStateEntity::class, BlockAchievement::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(GameStateConverter::class, BrickConverter::class)
@@ -153,6 +153,29 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE `block_achievements` ADD COLUMN `minimalist` INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `aroundTheCorner` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `largeCorner` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `hugeCorner` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `wideCorner` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `notEvenAround` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `largeWideCorner` INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

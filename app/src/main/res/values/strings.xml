@@ -61,6 +61,12 @@
     <string name="achievement_lines_cleared">%1$d / %2$d lines cleared</string>
     <string name="badge_come_and_gone">Come &amp; Gone</string>
     <string name="badge_minimalist">Minimalist</string>
+    <string name="badge_around_the_corner">Around the Corner</string>
+    <string name="badge_large_corner">Large Corner</string>
+    <string name="badge_huge_corner">Huge Corner</string>
+    <string name="badge_wide_corner">Wide Corner</string>
+    <string name="badge_not_even_around">Not Even Around</string>
+    <string name="badge_large_wide_corner">Large, Wide Corner</string>
 
     <!-- Achievement Notifications -->
     <string name="notify_minimalist">Minimalist! No more than absolutely necessary.</string>
