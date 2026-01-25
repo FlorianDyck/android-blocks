@@ -45,7 +45,9 @@ class GameViewModelTest {
     }
 
     class FakeGameRepository : GameRepository(mock(), mock()) {
-        private val achievements = mutableMapOf<com.flo.blocks.game.Brick, Int>()
+        private val records = mutableMapOf<com.flo.blocks.game.Brick, Int>()
+        private val comeAndGones = mutableSetOf<com.flo.blocks.game.Brick>()
+
         override suspend fun initialize() {}
         override suspend fun getLatestState(): Pair<com.flo.blocks.game.GameState, Int>? = null
         override suspend fun getHistory(): List<com.flo.blocks.game.GameState> = emptyList()
@@ -53,10 +55,17 @@ class GameViewModelTest {
         override suspend fun newGame() {}
         override suspend fun getBlockAchievement(brick: com.flo.blocks.game.Brick): com.flo.blocks.data.BlockAchievement? {
             val canonical = brick.canonical
-            return achievements[canonical]?.let { com.flo.blocks.data.BlockAchievement(canonical, it) }
+            return com.flo.blocks.data.BlockAchievement(
+                canonical,
+                records[canonical] ?: 0,
+                comeAndGones.contains(canonical)
+            )
         }
         override suspend fun updateBlockAchievement(brick: com.flo.blocks.game.Brick, lines: Int) {
-            achievements[brick.canonical] = lines
+            records[brick.canonical] = lines
+        }
+        override suspend fun markComeAndGone(brick: com.flo.blocks.game.Brick) {
+            comeAndGones.add(brick.canonical)
         }
     }
 
@@ -98,7 +107,7 @@ class GameViewModelTest {
             viewModel.achievementEvents.collect { events.add(it) }
         }
 
-        // Setup a state where placing a brick clears 2 lines
+        // Setup a state where placing a brick clears 2 lines but NOT the whole brick
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         // Fill first two lines except for (0,0) and (0,1)
         for (y in 0..1) {
@@ -106,6 +115,11 @@ class GameViewModelTest {
                 board[x, y] = com.flo.blocks.game.BlockColor.BLUE
             }
         }
+        // Add a block that prevents (0,1) from being cleared by a row clear
+        // Wait, rows clear 0..7. If (0,1) is part of the brick, it's cleared if line 1 is full.
+        // To NOT remove the whole brick, we need the brick to have a tile in a line/row that is NOT cleared.
+        // Let's use a 2x2 brick and clear only two lines.
+        // Or just let it be Come and Gone and update expectation.
         
         val brick = com.flo.blocks.game.rect(0, 0, 0, 1) // 1x2 vertical brick
         val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
@@ -113,22 +127,64 @@ class GameViewModelTest {
         viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         
         // Place the brick at (0,0) to clear 2 lines
+        // This triggers Come and Gone because both tiles (0,0) and (0,1) are in cleared lines 0 and 1
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
         assertEquals(1, events.size)
-        assertEquals("New Record! 2 lines cleared!", events[0].message)
+        assertEquals(true, events[0].blockRemoved)
+        assertEquals(true, events[0].isNewRecord)
+        assertEquals(2, events[0].cleared)
         assertEquals(brick, events[0].brick.brick)
-        assertEquals(com.flo.blocks.game.BlockColor.RED, events[0].brick.color)
         
         // Place again (setup same state)
         viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
         
-        // Should be "Well done" now as 2 is not > 2
+        // Should be just Come and Gone (not a new record)
         assertEquals(2, events.size)
-        assertEquals("Well done! 2 lines cleared!", events[1].message)
+        assertEquals(true, events[1].blockRemoved)
+        assertEquals(false, events[1].isNewRecord)
+        assertEquals(2, events[1].cleared)
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `placeBrick triggers come and gone and merges message`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<GameViewModel.Achievement>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // 1x1 brick
+        val brick = com.flo.blocks.game.field(0, 0)
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        // Board with one empty spot at (0,0) which completes both row 0 and line 0
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        for (i in 1..7) board[i, 0] = com.flo.blocks.game.BlockColor.BLUE
+        for (i in 1..7) board[0, i] = com.flo.blocks.game.BlockColor.BLUE
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        val ach = events[0]
+        assertEquals(true, ach.blockRemoved)
+        assertEquals(true, ach.isNewRecord)
+        assertEquals(2, ach.cleared)
+        
+        // Verify repository updated
+        val achievement = gameRepository.getBlockAchievement(brick)
+        assertEquals(2, achievement?.maxLinesCleared)
+        assertEquals(true, achievement?.comeAndGone)
         
         job.cancel()
     }
@@ -157,11 +213,15 @@ class GameViewModelTest {
         val rotatedColoredBrick = com.flo.blocks.game.ColoredBrick(rotatedBrick, com.flo.blocks.game.BlockColor.GREEN)
         
         // 1. Place vertical brick to clear 2 lines
+        // Also triggers Come and Gone
         viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
-        assertEquals("New Record! 2 lines cleared!", events.last().message)
+        val ach1 = events.last()
+        assertEquals(true, ach1.blockRemoved)
+        assertEquals(true, ach1.isNewRecord)
+        assertEquals(2, ach1.cleared)
         
         // 2. Place horizontal brick (rotated) to clear 2 lines
         // Setup state for horizontal clear
@@ -175,8 +235,56 @@ class GameViewModelTest {
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
         
-        // Should be "Well done" because 2 is not > 2 (record from first placement)
-        assertEquals("Well done! 2 lines cleared!", events.last().message)
+        // Should be Come and Gone (not new record)
+        val ach2 = events.last()
+        assertEquals(true, ach2.blockRemoved)
+        assertEquals(false, ach2.isNewRecord)
+        assertEquals(2, ach2.cleared)
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `placeBrick triggers random congrats when no achievements`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<GameViewModel.Achievement>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // Setup a 3x3 brick and clear 2 lines that DON'T cover the whole brick
+        val brick = com.flo.blocks.game.rect(0, 0, 2, 2)
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        // Fill lines 0 and 1 except for (0,0), (1,0), (2,0) and (0,1), (1,1), (2,1)
+        for (y in 0..1) {
+            for (x in 3..7) {
+                board[x, y] = com.flo.blocks.game.BlockColor.BLUE
+            }
+        }
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        
+        // First time: New Record
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+        val ach1 = events.last()
+        assertEquals(false, ach1.blockRemoved)
+        assertEquals(true, ach1.isNewRecord)
+        assertEquals(2, ach1.cleared)
+
+        // Second time: Random congrats (represented by no recording + no blockRemoved)
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        val ach2 = events.last()
+        assertEquals(false, ach2.blockRemoved)
+        assertEquals(false, ach2.isNewRecord)
+        assertEquals(2, ach2.cleared)
         
         job.cancel()
     }

@@ -37,7 +37,7 @@ open class GameRepository(
             if (needsMigration) {
                 blockAchievementDao.clearAllAchievements()
                 for ((brick, maxLines) in canonicalAchievements) {
-                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines))
+                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines, false))
                 }
             }
         }
@@ -80,9 +80,32 @@ open class GameRepository(
     open suspend fun updateBlockAchievement(brick: Brick, lines: Int) {
         withContext(Dispatchers.IO) {
             val canonicalBrick = brick.canonical
-            val currentRecord = blockAchievementDao.getAchievement(canonicalBrick)?.maxLinesCleared ?: 0
+            val current = blockAchievementDao.getAchievement(canonicalBrick)
+            val currentRecord = current?.maxLinesCleared ?: 0
             if (lines > currentRecord) {
-                blockAchievementDao.upsertAchievement(BlockAchievement(canonicalBrick, lines))
+                blockAchievementDao.upsertAchievement(
+                    BlockAchievement(
+                        canonicalBrick,
+                        lines,
+                        current?.comeAndGone ?: false
+                    )
+                )
+            }
+        }
+    }
+
+    open suspend fun markComeAndGone(brick: Brick) {
+        withContext(Dispatchers.IO) {
+            val canonicalBrick = brick.canonical
+            val current = blockAchievementDao.getAchievement(canonicalBrick)
+            if (current == null || !current.comeAndGone) {
+                blockAchievementDao.upsertAchievement(
+                    BlockAchievement(
+                        canonicalBrick,
+                        current?.maxLinesCleared ?: 0,
+                        true
+                    )
+                )
             }
         }
     }

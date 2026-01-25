@@ -101,7 +101,12 @@ class GameViewModel(
         }
     }
 
-    data class Achievement(val message: String, val brick: ColoredBrick)
+    data class Achievement(
+        val brick: ColoredBrick,
+        val cleared: Int,
+        val isNewRecord: Boolean,
+        val blockRemoved: Boolean
+    )
 
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
 
@@ -137,19 +142,22 @@ class GameViewModel(
         val coloredBrick = game.value.bricks[index] ?: return 0
         val brick = coloredBrick.brick
         val oldScore = game.value.score
-        updateGameState(game.value.place(index, position))
+        
+        val (nextState, blockRemoved) = game.value.place(index, position)
+        updateGameState(nextState)
+        
         val cleared = game.value.score - oldScore
 
-        if (cleared > 0) {
+        if (cleared > 0 || blockRemoved) {
             viewModelScope.launch {
                 val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
-                if (cleared > currentRecord) {
-                    gameRepository.updateBlockAchievement(brick, cleared)
-                    if (cleared > 1) {
-                        _achievementEvents.emit(Achievement("New Record! $cleared lines cleared!", coloredBrick))
-                    }
-                } else if (cleared > 1) {
-                    _achievementEvents.emit(Achievement("Well done! $cleared lines cleared!", coloredBrick))
+                val isNewRecord = cleared > currentRecord
+
+                if (blockRemoved) gameRepository.markComeAndGone(brick)
+                if (isNewRecord) gameRepository.updateBlockAchievement(brick, cleared)
+
+                if (blockRemoved || isNewRecord || cleared > 1) {
+                    _achievementEvents.emit(Achievement(coloredBrick, cleared, isNewRecord, blockRemoved))
                 }
             }
         }

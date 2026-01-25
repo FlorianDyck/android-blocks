@@ -10,18 +10,19 @@ data class GameState(
 ) {
     fun lost() = (0..2).all { bricks[it] == null || !board.canPlace(bricks[it]!!.brick) }
 
-    fun place(index: Int, position: IntOffset): GameState {
-        val (newBoard, cleared) = board.place(bricks[index]!!.offset(position))
+    fun place(index: Int, position: IntOffset): Pair<GameState, Boolean> {
+        val (newBoard, cleared, blockRemoved) = board.place(bricks[index]!!.offset(position))
         var newBricks = bricks.clone()
         newBricks[index] = null
         if (newBricks.all { it == null }) {
             newBricks = Array(3) { randomBrick() }
         }
-        return GameState(
+        val newState = GameState(
             newBoard,
             newBricks,
             score + cleared
         )
+        return Pair(newState, blockRemoved)
     }
 
     override fun equals(other: Any?): Boolean {

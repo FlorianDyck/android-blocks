@@ -3,8 +3,11 @@ package com.flo.blocks
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -66,9 +69,11 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(CANONICAL_BRICKS) { brick ->
+                val achievement = achievementsMap[brick]
                 AchievementItem(
                     brick = brick,
-                    maxLines = achievementsMap[brick]?.maxLinesCleared ?: 0
+                    maxLines = achievement?.maxLinesCleared ?: 0,
+                    comeAndGone = achievement?.comeAndGone ?: false
                 )
             }
         }
@@ -76,37 +81,63 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun AchievementItem(brick: Brick, maxLines: Int) {
+fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 2.dp
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Box(
-                modifier = Modifier.size(60.dp),
-                contentAlignment = Alignment.Center
+        BoxWithConstraints {
+            val isNarrow = maxWidth < 340.dp
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 16.dp else 24.dp)
             ) {
-                // Using a default color for achievements display
-                Brick(ColoredBrick(brick, com.flo.blocks.game.BlockColor.BLUE), 10.dp)
-            }
-            
-            Column {
-                Text(
-                    text = if (maxLines > 0) "Personal Best" else "No record yet",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                Text(
-                    text = "$maxLines lines cleared",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = if (maxLines > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Box(
+                    modifier = Modifier.size(60.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Using a default color for achievements display
+                    Brick(ColoredBrick(brick, com.flo.blocks.game.BlockColor.BLUE), 10.dp)
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (maxLines > 0) "Personal Best" else "No record yet",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "$maxLines lines cleared",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = if (maxLines > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    if (isNarrow && comeAndGone) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ComeAndGoneBadge()
+                    }
+                }
+
+                if (!isNarrow && comeAndGone) {
+                    ComeAndGoneBadge()
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ComeAndGoneBadge() {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = "Come & Gone",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }

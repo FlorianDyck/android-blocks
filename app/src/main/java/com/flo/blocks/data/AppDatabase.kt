@@ -44,7 +44,8 @@ data class GameStateEntity(
 @Entity(tableName = "block_achievements")
 data class BlockAchievement(
     @PrimaryKey val brick: Brick,
-    val maxLinesCleared: Int
+    val maxLinesCleared: Int,
+    val comeAndGone: Boolean = false
 )
 
 class BrickConverter {
@@ -122,7 +123,7 @@ interface BlockAchievementDao {
 
 @Database(
     entities = [Game::class, GameStateEntity::class, BlockAchievement::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(GameStateConverter::class, BrickConverter::class)
@@ -135,6 +136,14 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `block_achievements` (`brick` TEXT NOT NULL, `maxLinesCleared` INTEGER NOT NULL, PRIMARY KEY(`brick`))"
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `block_achievements` ADD COLUMN `comeAndGone` INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

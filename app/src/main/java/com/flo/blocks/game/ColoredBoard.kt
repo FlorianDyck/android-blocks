@@ -2,6 +2,8 @@ package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 
+data class PlacementResult(val board: ColoredBoard, val cleared: Int, val blockRemoved: Boolean)
+
 data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockColor>) {
 
     constructor(width: Int, height: Int) : this(width, height, Array(width * height) { BlockColor.BACKGROUND })
@@ -45,9 +47,10 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         return Board(width, height, BooleanArray(width * height) { board[it].used() })
     }
 
-    fun place(hovering: ColoredOffsetBrick): Pair<ColoredBoard, Int> {
+    fun place(hovering: ColoredOffsetBrick): PlacementResult {
         val result = ColoredBoard(width, height, board.clone())
-        for (position in hovering.brick.positionList()) result[position] = hovering.color
+        val positions = hovering.brick.positionList()
+        for (position in positions) result[position] = hovering.color
 
         val lines = hovering.brick.lines().filter { line -> rowIndices.all { row -> result[row, line].used() } }
         val rows = hovering.brick.rows().filter { row -> lineIndices.all { line -> result[row, line].used() } }
@@ -55,6 +58,7 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         for (line in lines) for (row in rowIndices) result[row, line] = BlockColor.BACKGROUND
         for (row in rows) for (line in lineIndices) result[row, line] = BlockColor.BACKGROUND
 
-        return Pair(result, lines.size + rows.size)
+        val blockRemoved = positions.all { it.y in lines || it.x in rows }
+        return PlacementResult(result, lines.size + rows.size, blockRemoved)
     }
 }
