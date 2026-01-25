@@ -109,7 +109,7 @@ fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean) {
                         color = MaterialTheme.colorScheme.secondary
                     )
                     Text(
-                        text = "$maxLines lines cleared",
+                        text = "$maxLines / ${brick.width + brick.height} lines cleared",
                         style = MaterialTheme.typography.headlineSmall,
                         color = if (maxLines > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
