@@ -78,6 +78,11 @@ class GameViewModel(
             field = value
             viewModelScope.launch { settingsRepository.saveAchievementShowClearedLines(value) }
         }
+    var achievementShowAroundTheCorner = true
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveAchievementShowAroundTheCorner(value) }
+        }
     val achievementAlpha = MutableStateFlow(0.9f)
 
     fun setAchievementAlpha(alpha: Float) {
@@ -110,6 +115,8 @@ class GameViewModel(
             achievementShowComeAndGone = settingsRepository.achievementShowComeAndGoneFlow.first()
             achievementShowNewRecord = settingsRepository.achievementShowNewRecordFlow.first()
             achievementShowClearedLines = settingsRepository.achievementShowClearedLinesFlow.first()
+            achievementShowAroundTheCorner =
+                settingsRepository.achievementShowAroundTheCornerFlow.first()
             achievementAlpha.value = settingsRepository.achievementAlphaFlow.first()
 
             viewModelScope.launch {
@@ -133,6 +140,11 @@ class GameViewModel(
             viewModelScope.launch {
                 settingsRepository.achievementShowClearedLinesFlow.collect {
                     achievementShowClearedLines = it
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementShowAroundTheCornerFlow.collect {
+                    achievementShowAroundTheCorner = it
                 }
             }
             viewModelScope.launch {
@@ -218,8 +230,7 @@ class GameViewModel(
         val oldScore = game.value.score
 
         val (nextState, blockRemoved, cellsCleared, clearedRowIndices, clearedColIndices) = game.value.place(
-            index,
-            position
+            index, position
         )
         updateGameState(nextState)
 
@@ -276,13 +287,13 @@ class GameViewModel(
                 isAroundTheCorner = true
 
                 val neighbors = intersections.flatMap { intersect ->
-                        listOf(
-                            IntOffset(intersect.x - 1, intersect.y),
-                            IntOffset(intersect.x + 1, intersect.y),
-                            IntOffset(intersect.x, intersect.y - 1),
-                            IntOffset(intersect.x, intersect.y + 1)
-                        )
-                    }.toSet()
+                    listOf(
+                        IntOffset(intersect.x - 1, intersect.y),
+                        IntOffset(intersect.x + 1, intersect.y),
+                        IntOffset(intersect.x, intersect.y - 1),
+                        IntOffset(intersect.x, intersect.y + 1)
+                    )
+                }.toSet()
 
                 val neighborCount = neighbors.count { it in brickPositions }
 
@@ -310,7 +321,7 @@ class GameViewModel(
 
         if ((blockRemoved && achievementShowComeAndGone.shouldShow(isThin)) or (isNewRecord && achievementShowNewRecord) or (isMinimalist && achievementShowMinimalist.shouldShow(
                 isThin
-            )) or (cleared > 1 && achievementShowClearedLines) or isAroundTheCorner
+            )) or (cleared > 1 && achievementShowClearedLines) or (isAroundTheCorner && achievementShowAroundTheCorner)
         ) {
             _achievementEvents.emit(
                 Achievement(

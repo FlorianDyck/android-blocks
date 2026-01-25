@@ -37,6 +37,7 @@
     <string name="settings_show_come_and_gone">Zeige Da &amp; Weg</string>
     <string name="settings_show_new_record">Zeige Neuen Rekord</string>
     <string name="settings_show_cleared_lines">Zeige Entfernte Zeilen</string>
+    <string name="settings_show_around_the_corner">Zeige Um die Ecke</string>
     <string name="settings_transparency">Transparenz</string>
     <string name="save">Speichern</string>
 

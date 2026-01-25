@@ -56,6 +56,7 @@ class GameViewModelTest {
         )
         whenever(settingsRepository.achievementShowNewRecordFlow).thenReturn(flowOf(true))
         whenever(settingsRepository.achievementShowClearedLinesFlow).thenReturn(flowOf(true))
+        whenever(settingsRepository.achievementShowAroundTheCornerFlow).thenReturn(flowOf(true))
         whenever(settingsRepository.achievementAlphaFlow).thenReturn(flowOf(0.9f))
     }
 
@@ -70,10 +71,7 @@ class GameViewModelTest {
         override suspend fun getLatestState(): Pair<com.flo.blocks.game.GameState, Int>? = null
 
         override suspend fun getHistory(): List<com.flo.blocks.game.GameState> = emptyList()
-        override suspend fun saveGameState(
-            state: com.flo.blocks.game.GameState, index: Int
-        ) {
-        }
+        override suspend fun saveGameState(state: com.flo.blocks.game.GameState, index: Int) {}
 
         override suspend fun newGame() {}
         override suspend fun getBlockAchievement(
@@ -160,22 +158,23 @@ class GameViewModelTest {
             }
         }
         // Add a block that prevents (0,1) from being cleared by a row clear
-        // Wait, rows clear 0..7. If (0,1) is part of the brick, it's cleared if line 1 is full.
-        // To NOT remove the whole brick, we need the brick to have a tile in a line/row that is NOT cleared.
+        // Wait, rows clear 0..7. If (0,1) is part of the brick, it's cleared if line 1 is
+        // full.
+        // To NOT remove the whole brick, we need the brick to have a tile in a line/row
+        // that is NOT cleared.
         // Let's use a 2x2 brick and clear only two lines.
         // Or just let it be Come and Gone and update expectation.
 
         val brick = com.flo.blocks.game.rect(0, 0, 0, 1) // 1x2 vertical brick
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         // Place the brick at (0,0) to clear 2 lines
-        // This triggers Come and Gone because both tiles (0,0) and (0,1) are in cleared lines 0 and 1
+        // This triggers Come and Gone because both tiles (0,0) and (0,1) are in cleared
+        // lines 0 and 1
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
@@ -186,9 +185,8 @@ class GameViewModelTest {
         assertEquals(brick, events[0].brick.brick)
 
         // Place again (setup same state)
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
@@ -211,18 +209,16 @@ class GameViewModelTest {
 
         // 1x1 brick
         val brick = com.flo.blocks.game.field(0, 0)
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
         // Board with one empty spot at (0,0) which completes both row 0 and line 0
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         for (i in 1..7) board[i, 0] = com.flo.blocks.game.BlockColor.BLUE
         for (i in 1..7) board[0, i] = com.flo.blocks.game.BlockColor.BLUE
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
@@ -259,18 +255,16 @@ class GameViewModelTest {
 
         val brick = com.flo.blocks.game.rect(0, 0, 0, 1) // 1x2 vertical brick
         val rotatedBrick = brick.rotate() // 2x1 horizontal brick
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
         val rotatedColoredBrick = com.flo.blocks.game.ColoredBrick(
             rotatedBrick, com.flo.blocks.game.BlockColor.GREEN
         )
 
         // 1. Place vertical brick to clear 2 lines
         // Also triggers Come and Gone
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
@@ -312,9 +306,8 @@ class GameViewModelTest {
 
         // Setup a 3x3 brick and clear 2 lines that DON'T cover the whole brick
         val brick = com.flo.blocks.game.rect(0, 0, 2, 2)
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         // Fill lines 0 and 1 except for (0,0), (1,0), (2,0) and (0,1), (1,1), (2,1)
@@ -324,9 +317,8 @@ class GameViewModelTest {
             }
         }
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         // First time: New Record
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
@@ -337,9 +329,8 @@ class GameViewModelTest {
         assertEquals(2, ach1.cleared)
 
         // Second time: Random congrats (represented by no recording + no blockRemoved)
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 
@@ -362,18 +353,16 @@ class GameViewModelTest {
         // 3x3 L-shape brick (user example): 0,0, 0,1, 0,2, 1,2, 2,2
         // Min cells to clear: 1 row + 1 col = 1*8 + 1*8 - 1 = 15 cells.
         val brick = com.flo.blocks.game.rect(0, 0, 0, 2) + com.flo.blocks.game.rect(0, 2, 2, 2)
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         // Setup state to clear col 0 and row 2
         for (y in 0..7) if (y != 2) board[0, y] = com.flo.blocks.game.BlockColor.BLUE
         for (x in 0..7) if (x != 0) board[x, 2] = com.flo.blocks.game.BlockColor.BLUE
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
@@ -397,18 +386,16 @@ class GameViewModelTest {
         // 2x2 block: 0,0, 1,0, 0,1, 1,1
         // Min cells to clear: 2 rows = 16 cells OR 2 cols = 16 cells.
         val brick = com.flo.blocks.game.rect(0, 0, 1, 1)
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         // Setup state to clear row 0 and row 1
         for (x in 0..7) board[x, 0] = com.flo.blocks.game.BlockColor.BLUE
         for (x in 0..7) board[x, 1] = com.flo.blocks.game.BlockColor.BLUE
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
@@ -433,13 +420,11 @@ class GameViewModelTest {
         val board = com.flo.blocks.game.ColoredBoard(8, 8)
         for (x in 1..7) board[x, 0] = com.flo.blocks.game.BlockColor.BLUE
         val brick = com.flo.blocks.game.rect(0, 0, 0, 0) // 1x1
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 10
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 10)
 
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
@@ -492,16 +477,12 @@ class GameViewModelTest {
         //  X
         // XX
         // 0,0 is false. 1,0 is true. 0,1 is true. 1,1 is true.
-        val brick = com.flo.blocks.game.Brick(
-            2, 2, booleanArrayOf(false, true, true, true)
-        )
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val brick = com.flo.blocks.game.Brick(2, 2, booleanArrayOf(false, true, true, true))
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
 
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
@@ -541,13 +522,11 @@ class GameViewModelTest {
                 true, false // (0,2)-> X. (1,2)
             )
         )
-        val coloredBrick = com.flo.blocks.game.ColoredBrick(
-            brick, com.flo.blocks.game.BlockColor.RED
-        )
+        val coloredBrick =
+            com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
 
-        viewModel.game.value = com.flo.blocks.game.GameState(
-            board, arrayOf(coloredBrick, null, null), 0
-        )
+        viewModel.game.value =
+            com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
         viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
         advanceUntilIdle()
 

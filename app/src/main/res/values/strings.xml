@@ -37,6 +37,7 @@
     <string name="settings_show_come_and_gone">Show Come and Gone</string>
     <string name="settings_show_new_record">Show New Record</string>
     <string name="settings_show_cleared_lines">Show Cleared Lines</string>
+    <string name="settings_show_around_the_corner">Show Around the Corner</string>
     <string name="settings_transparency">Transparency</string>
     <string name="save">Save</string>
 

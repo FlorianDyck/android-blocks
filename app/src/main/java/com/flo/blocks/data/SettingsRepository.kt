@@ -27,6 +27,7 @@ interface SettingsRepository {
     val achievementShowComeAndGoneFlow: Flow<AchievementFilter>
     val achievementShowNewRecordFlow: Flow<Boolean>
     val achievementShowClearedLinesFlow: Flow<Boolean>
+    val achievementShowAroundTheCornerFlow: Flow<Boolean>
     val achievementAlphaFlow: Flow<Float>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
@@ -39,13 +40,12 @@ interface SettingsRepository {
     suspend fun saveAchievementShowComeAndGone(filter: AchievementFilter)
     suspend fun saveAchievementShowNewRecord(show: Boolean)
     suspend fun saveAchievementShowClearedLines(show: Boolean)
+    suspend fun saveAchievementShowAroundTheCorner(show: Boolean)
     suspend fun saveAchievementAlpha(alpha: Float)
 }
 
 enum class AchievementFilter {
-    Always,
-    ExceptThin,
-    Never;
+    Always, ExceptThin, Never;
 
     fun shouldShow(isThin: Boolean): Boolean {
         return when (this) {
@@ -70,6 +70,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val ACHIEVEMENT_SHOW_COME_AND_GONE = stringPreferencesKey("achievement_show_come_and_gone")
         val ACHIEVEMENT_SHOW_NEW_RECORD = booleanPreferencesKey("achievement_show_new_record")
         val ACHIEVEMENT_SHOW_CLEARED_LINES = booleanPreferencesKey("achievement_show_cleared_lines")
+        val ACHIEVEMENT_SHOW_AROUND_THE_CORNER =
+            booleanPreferencesKey("achievement_show_around_the_corner")
         val ACHIEVEMENT_ALPHA =
             androidx.datastore.preferences.core.floatPreferencesKey("achievement_alpha")
     }
@@ -81,53 +83,44 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             ComputeEnabled.valueOf(computeEnabledString)
         }
 
-    override val undoEnabledFlow: Flow<UndoEnabled> =
-        context.dataStore.data.map { preferences ->
-            val undoEnabledString =
-                preferences[PreferencesKeys.UNDO_ENABLED] ?: UndoEnabled.Always.name
-            UndoEnabled.valueOf(undoEnabledString)
-        }
+    override val undoEnabledFlow: Flow<UndoEnabled> = context.dataStore.data.map { preferences ->
+        val undoEnabledString = preferences[PreferencesKeys.UNDO_ENABLED] ?: UndoEnabled.Always.name
+        UndoEnabled.valueOf(undoEnabledString)
+    }
 
-    override val showUndoIfEnabledFlow: Flow<Boolean> =
-        context.dataStore.data.map { preferences ->
-            preferences[PreferencesKeys.SHOW_UNDO_IF_ENABLED] ?: true // Default to true
-        }
+    override val showUndoIfEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_UNDO_IF_ENABLED] ?: true // Default to true
+    }
 
-    override val showNewGameButtonFlow: Flow<Boolean> =
-        context.dataStore.data.map { preferences ->
-            preferences[PreferencesKeys.SHOW_NEW_GAME_BUTTON] ?: false // Default to false
-        }
+    override val showNewGameButtonFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_NEW_GAME_BUTTON] ?: false // Default to false
+    }
 
-    override val boardWidthFlow: Flow<Int> =
-        context.dataStore.data.map { preferences ->
-            preferences[PreferencesKeys.BOARD_WIDTH] ?: 8 // Default to 8
-        }
+    override val boardWidthFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.BOARD_WIDTH] ?: 8 // Default to 8
+    }
 
-    override val boardHeightFlow: Flow<Int> =
-        context.dataStore.data.map { preferences ->
-            preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8 // Default to 8
-        }
+    override val boardHeightFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8 // Default to 8
+    }
 
-    override val highscoreFlow: Flow<Int> =
-        context.dataStore.data.map { preferences ->
-            val width = preferences[PreferencesKeys.BOARD_WIDTH] ?: 8
-            val height = preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8
-            preferences[intPreferencesKey("highscore_${width}_${height}")] ?: 0
-        }
+    override val highscoreFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        val width = preferences[PreferencesKeys.BOARD_WIDTH] ?: 8
+        val height = preferences[PreferencesKeys.BOARD_HEIGHT] ?: 8
+        preferences[intPreferencesKey("highscore_${width}_${height}")] ?: 0
+    }
 
     override val achievementShowMinimalistFlow: Flow<AchievementFilter> =
         context.dataStore.data.map { preferences ->
-            val value =
-                preferences[PreferencesKeys.ACHIEVEMENT_SHOW_MINIMALIST]
-                    ?: AchievementFilter.Always.name
+            val value = preferences[PreferencesKeys.ACHIEVEMENT_SHOW_MINIMALIST]
+                ?: AchievementFilter.Always.name
             AchievementFilter.valueOf(value)
         }
 
     override val achievementShowComeAndGoneFlow: Flow<AchievementFilter> =
         context.dataStore.data.map { preferences ->
-            val value =
-                preferences[PreferencesKeys.ACHIEVEMENT_SHOW_COME_AND_GONE]
-                    ?: AchievementFilter.Always.name
+            val value = preferences[PreferencesKeys.ACHIEVEMENT_SHOW_COME_AND_GONE]
+                ?: AchievementFilter.Always.name
             AchievementFilter.valueOf(value)
         }
 
@@ -141,10 +134,14 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             preferences[PreferencesKeys.ACHIEVEMENT_SHOW_CLEARED_LINES] ?: true
         }
 
-    override val achievementAlphaFlow: Flow<Float> =
+    override val achievementShowAroundTheCornerFlow: Flow<Boolean> =
         context.dataStore.data.map { preferences ->
-            preferences[PreferencesKeys.ACHIEVEMENT_ALPHA] ?: 0.8f
+            preferences[PreferencesKeys.ACHIEVEMENT_SHOW_AROUND_THE_CORNER] ?: true
         }
+
+    override val achievementAlphaFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.ACHIEVEMENT_ALPHA] ?: 0.8f
+    }
 
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
         context.dataStore.edit { settings ->
@@ -165,9 +162,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     }
 
     override suspend fun saveShowNewGameButton(show: Boolean) {
-        context.dataStore.edit { settings ->
-            settings[PreferencesKeys.SHOW_NEW_GAME_BUTTON] = show
-        }
+        context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_NEW_GAME_BUTTON] = show }
     }
 
     override suspend fun saveBoardSize(width: Int, height: Int) {
@@ -206,6 +201,12 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override suspend fun saveAchievementShowClearedLines(show: Boolean) {
         context.dataStore.edit { settings ->
             settings[PreferencesKeys.ACHIEVEMENT_SHOW_CLEARED_LINES] = show
+        }
+    }
+
+    override suspend fun saveAchievementShowAroundTheCorner(show: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[PreferencesKeys.ACHIEVEMENT_SHOW_AROUND_THE_CORNER] = show
         }
     }
 

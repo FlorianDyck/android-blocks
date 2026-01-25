@@ -286,6 +286,9 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
             var achievementShowClearedLines by remember {
                 mutableStateOf(computeViewModel.achievementShowClearedLines)
             }
+            var achievementShowAroundTheCorner by remember {
+                mutableStateOf(computeViewModel.achievementShowAroundTheCorner)
+            }
             var achievementAlpha by remember {
                 mutableFloatStateOf(computeViewModel.achievementAlpha.value)
             }
@@ -399,6 +402,13 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                     ) {
                         achievementShowClearedLines = it
                         computeViewModel.achievementShowClearedLines = it
+                    }
+                    SelectOption(
+                            stringResource(R.string.settings_show_around_the_corner),
+                            achievementShowAroundTheCorner
+                    ) {
+                        achievementShowAroundTheCorner = it
+                        computeViewModel.achievementShowAroundTheCorner = it
                     }
 
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
