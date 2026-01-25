@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,62 +58,50 @@ import com.flo.blocks.game.ColoredBrick
 
 @Composable
 fun SelectNumber(description: String, initialValue: Int, set: (Int) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        var value: Int? by remember {
-            mutableStateOf(initialValue)
-        }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        var value: Int? by remember { mutableStateOf(initialValue) }
         Text(
-            description,
-            Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
+                description,
+                Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
         )
         TextField(
-            value?.toString() ?: "", {
-                value = it.toIntOrNull()
-                if (value != null) {
-                    set(value!!)
-                }
-            }, Modifier.weight(1f),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number
-            )
+                value?.toString() ?: "",
+                {
+                    value = it.toIntOrNull()
+                    if (value != null) {
+                        set(value!!)
+                    }
+                },
+                Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
     }
 }
 
 @Composable
 fun SelectOption(
-    description: String,
-    value: Boolean,
-    enabled: Boolean = true,
-    set: (Boolean) -> Unit
+        description: String,
+        value: Boolean,
+        enabled: Boolean = true,
+        set: (Boolean) -> Unit
 ) {
     Row(
-        (if (enabled) Modifier.clickable { set(!value) } else Modifier).fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+            (if (enabled) Modifier.clickable { set(!value) } else Modifier).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
     ) {
         val targetAlpha = if (enabled) 1f else .5f
         val animatedAlpha by animateFloatAsState(targetAlpha, label = "alpha")
         Text(
-            description,
-            Modifier
-                .alpha(animatedAlpha)
-                .weight(1f),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
+                description,
+                Modifier.alpha(animatedAlpha).weight(1f),
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
         )
-        Box(
-            Modifier
-                .weight(1f)
-                .padding(8.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
+        Box(Modifier.weight(1f).padding(8.dp), contentAlignment = Alignment.CenterEnd) {
             Checkbox(value, { set(it) }, enabled = enabled)
         }
     }
@@ -120,53 +109,51 @@ fun SelectOption(
 
 @Composable
 fun <T> SelectPossibleValue(
-    description: String,
-    value: T,
-    possibleValues: Iterable<T>,
-    set: (T) -> Unit
+        description: String,
+        value: T,
+        possibleValues: Iterable<T>,
+        label: @Composable (T) -> String = { it.toString() },
+        set: (T) -> Unit
 ) {
-    var expanded by remember {
-        mutableStateOf(false)
-    }
+    var expanded by remember { mutableStateOf(false) }
     Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { expanded = true },
-        verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth().clickable { expanded = true },
+            verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            description,
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-        Row(
-            Modifier
-                .weight(1f)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                value.toString(),
+                description,
+                Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
+        )
+        Row(Modifier.weight(1f).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                    label(value),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
             )
             Spacer(Modifier.weight(1f))
             Icon(
-                Icons.Filled.KeyboardArrowDown,
-                "select",
-                tint = MaterialTheme.colorScheme.onBackground
+                    Icons.Filled.KeyboardArrowDown,
+                    stringResource(R.string.preview_select),
+                    tint = MaterialTheme.colorScheme.onBackground
             )
             DropdownMenu(expanded, { expanded = false }) {
                 for (possibleValue in possibleValues) {
-                    DropdownMenuItem(text = {
-                        Text(possibleValue.toString())
-                    }, trailingIcon = {
-                        if (possibleValue == value) Icon(Icons.Filled.Check, "selected")
-                    }, onClick = {
-                        expanded = false
-                        set(possibleValue)
-                    })
+                    DropdownMenuItem(
+                            text = { Text(label(possibleValue)) },
+                            trailingIcon = {
+                                if (possibleValue == value)
+                                        Icon(
+                                                Icons.Filled.Check,
+                                                stringResource(R.string.preview_selected)
+                                        )
+                            },
+                            onClick = {
+                                expanded = false
+                                set(possibleValue)
+                            }
+                    )
                 }
             }
         }
@@ -175,44 +162,39 @@ fun <T> SelectPossibleValue(
 
 @Composable
 fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntState) {
-    var sync by remember {
-        mutableStateOf(board.width == board.height)
-    }
-    val inSync by remember {
-        derivedStateOf {
-            sync && width.intValue == height.intValue
-        }
-    }
-    AnimatedContent(
-        targetState = inSync,
-        contentAlignment = Alignment.Center,
-        label = "inSync"
-    ) { targetState ->
+    var sync by remember { mutableStateOf(board.width == board.height) }
+    val inSync by remember { derivedStateOf { sync && width.intValue == height.intValue } }
+    AnimatedContent(targetState = inSync, contentAlignment = Alignment.Center, label = "inSync") {
+            targetState ->
         if (targetState) {
-            SelectPossibleValue("Width and Height", width.intValue, 5..15) {
+            SelectPossibleValue(stringResource(R.string.width_and_height), width.intValue, 5..15) {
                 width.intValue = it
                 height.intValue = it
             }
         } else {
             Column {
-                SelectPossibleValue("Width", width.intValue, 5..15) {
+                SelectPossibleValue(stringResource(R.string.width), width.intValue, 5..15) {
                     width.intValue = it
                     if (sync) height.intValue = it
                 }
-                SelectPossibleValue("Height", height.intValue, 5..15) {
+                SelectPossibleValue(stringResource(R.string.height), height.intValue, 5..15) {
                     height.intValue = it
                     if (sync) width.intValue = it
                 }
             }
         }
     }
-    SelectOption("Square Board", sync) { sync = it }
+    SelectOption(stringResource(R.string.square_board), sync) { sync = it }
     AnimatedVisibility(width.intValue * height.intValue > 64) {
         Surface(color = MaterialTheme.colorScheme.errorContainer) {
             Text(
-                "Computations for boards with more than 64 positions are much slower and use more battery. " +
-                        "There are currently ${width.intValue * height.intValue} = ${width.intValue} (Width) * ${height.intValue} (Height) positions.",
-                Modifier.padding(8.dp)
+                    stringResource(
+                            R.string.computation_warning,
+                            width.intValue * height.intValue,
+                            width.intValue,
+                            height.intValue
+                    ),
+                    Modifier.padding(8.dp)
             )
         }
     }
@@ -220,24 +202,24 @@ fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntS
 
 @Composable
 fun NewGameOptions(
-    currentBoard: ColoredBoard,
-    onCancel: () -> Unit,
-    onConfirm: (Int, Int) -> Unit
+        currentBoard: ColoredBoard,
+        onCancel: () -> Unit,
+        onConfirm: (Int, Int) -> Unit
 ) {
     Dialog(onDismissRequest = onCancel) {
         Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.padding(16.dp)
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "New Game Options",
-                    style = MaterialTheme.typography.titleLarge
+                        text = stringResource(R.string.new_game_options_title),
+                        style = MaterialTheme.typography.titleLarge
                 )
 
                 val width = remember { mutableIntStateOf(currentBoard.width) }
@@ -245,19 +227,14 @@ fun NewGameOptions(
 
                 SizeOptions(currentBoard, width, height)
 
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                     Button(
-                        onClick = { onConfirm(width.intValue, height.intValue) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Start Game")
-                    }
+                            onClick = { onConfirm(width.intValue, height.intValue) },
+                            modifier = Modifier.weight(1f)
+                    ) { Text(stringResource(R.string.start_game)) }
                 }
             }
         }
@@ -301,32 +278,50 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                         horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                            "Gameplay",
+                            stringResource(R.string.settings_gameplay),
                             Modifier.padding(8.dp),
                             style = MaterialTheme.typography.titleLarge
                     )
 
+                    val computeLabels =
+                            mapOf(
+                                    GameViewModel.ComputeEnabled.Auto to R.string.compute_auto,
+                                    GameViewModel.ComputeEnabled.Button to R.string.compute_button,
+                                    GameViewModel.ComputeEnabled.Hidden to R.string.compute_hidden
+                            )
                     SelectPossibleValue(
-                            "Computation",
+                            stringResource(R.string.settings_computation),
                             computeEnabled,
-                            GameViewModel.ComputeEnabled.entries
+                            GameViewModel.ComputeEnabled.entries,
+                            label = { stringResource(computeLabels[it]!!) }
                     ) { computeEnabled = it }
+
+                    val undoLabels =
+                            mapOf(
+                                    GameViewModel.UndoEnabled.Always to R.string.undo_always,
+                                    GameViewModel.UndoEnabled.UnlessNewBlocks to
+                                            R.string.undo_unless_new_blocks,
+                                    GameViewModel.UndoEnabled.Never to R.string.undo_never
+                            )
                     SelectPossibleValue(
-                            "Allow Undo",
+                            stringResource(R.string.settings_allow_undo),
                             undoEnabled,
-                            GameViewModel.UndoEnabled.entries
+                            GameViewModel.UndoEnabled.entries,
+                            label = { stringResource(undoLabels[it]!!) }
                     ) { undoEnabled = it }
+
                     SelectOption(
-                            "Show Undo Button",
+                            stringResource(R.string.settings_show_undo_button),
                             showBackIfEnabled,
                             undoEnabled != GameViewModel.UndoEnabled.Never
                     ) { showBackIfEnabled = it }
-                    SelectOption("Show New Game Button", showNewGameButton) {
-                        showNewGameButton = it
-                    }
+                    SelectOption(
+                            stringResource(R.string.settings_show_new_game_button),
+                            showNewGameButton
+                    ) { showNewGameButton = it }
 
                     Text(
-                            "Achievements",
+                            stringResource(R.string.settings_achievements),
                             Modifier.padding(8.dp),
                             style = MaterialTheme.typography.titleLarge
                     )
@@ -334,28 +329,38 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                     Button(
                             onClick = openAchievements,
                             modifier = Modifier.padding(bottom = 16.dp)
-                    ) { Text("View Achievements") }
+                    ) { Text(stringResource(R.string.settings_view_achievements)) }
 
+                    val filterLabels =
+                            mapOf(
+                                    AchievementFilter.Always to R.string.filter_always,
+                                    AchievementFilter.ExceptThin to R.string.filter_except_thin,
+                                    AchievementFilter.Never to R.string.filter_never
+                            )
                     SelectPossibleValue(
-                            "Show Minimalist",
+                            stringResource(R.string.settings_show_minimalist),
                             achievementShowMinimalist,
-                            AchievementFilter.entries
+                            AchievementFilter.entries,
+                            label = { stringResource(filterLabels[it]!!) }
                     ) { achievementShowMinimalist = it }
                     SelectPossibleValue(
-                            "Show Come and Gone",
+                            stringResource(R.string.settings_show_come_and_gone),
                             achievementShowComeAndGone,
-                            AchievementFilter.entries
+                            AchievementFilter.entries,
+                            label = { stringResource(filterLabels[it]!!) }
                     ) { achievementShowComeAndGone = it }
-                    SelectOption("Show New Record", achievementShowNewRecord) {
-                        achievementShowNewRecord = it
-                    }
-                    SelectOption("Show Cleared Lines", achievementShowClearedLines) {
-                        achievementShowClearedLines = it
-                    }
+                    SelectOption(
+                            stringResource(R.string.settings_show_new_record),
+                            achievementShowNewRecord
+                    ) { achievementShowNewRecord = it }
+                    SelectOption(
+                            stringResource(R.string.settings_show_cleared_lines),
+                            achievementShowClearedLines
+                    ) { achievementShowClearedLines = it }
 
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                                "Transparency",
+                                stringResource(R.string.settings_transparency),
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center
@@ -417,7 +422,9 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(close, Modifier.weight(1f)) { Text(text = "Cancel") }
+                    Button(close, Modifier.weight(1f)) {
+                        Text(text = stringResource(R.string.cancel))
+                    }
                     Button(
                             {
                                 save()
@@ -425,7 +432,7 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                             },
                             Modifier.weight(1f),
                             anySettingChange
-                    ) { Text(text = "Save") }
+                    ) { Text(text = stringResource(R.string.save)) }
                 }
             }
         }

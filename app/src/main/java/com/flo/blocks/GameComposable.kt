@@ -55,6 +55,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -89,26 +91,26 @@ fun Block(color: Color, size: Dp, content: @Composable () -> Unit = {}) {
 }
 
 fun vibrateCallback(context: Context): () -> Unit {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vibratorManager =
-            context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE);
-        {
+                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+        val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+        return  {
             vibratorManager.cancel()
             vibratorManager.vibrate(CombinedVibration.createParallel(effect))
         }
     } else {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE);
-            {
+            val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
+            return {
                 vibrator.cancel()
                 vibrator.vibrate(effect)
             }
         } else {
-            {
+            return {
                 vibrator.cancel()
-                vibrator.vibrate(100)
+                @Suppress("DEPRECATION") vibrator.vibrate(100)
             }
         }
     }
@@ -312,7 +314,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                 val showUndo by gameViewModel.showUndo.collectAsState(false)
                 AnimatedVisibility(visible = showUndo) {
                     FloatingActionButton(onClick = { gameViewModel.undo() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.undo))
                     }
                 }
                 val showCompute by gameViewModel.showCompute.collectAsState()
@@ -324,17 +326,17 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                             )
                         },
                     ) {
-                        Icon(Icons.Filled.Search, "hint")
+                        Icon(Icons.Filled.Search, stringResource(R.string.hint))
                     }
                 }
                 val showNewGameButton by gameViewModel.showNewGameButton.collectAsState()
                 AnimatedVisibility(visible = showNewGameButton) {
                     FloatingActionButton(onClick = { showNewGameOptions.value = true }) {
-                        Icon(Icons.Filled.Add, "new game")
+                        Icon(Icons.Filled.Add, stringResource(R.string.new_game))
                     }
                 }
                 FloatingActionButton(onClick = openSettings) {
-                    Icon(Icons.Filled.Settings, "settings")
+                    Icon(Icons.Filled.Settings, stringResource(R.string.settings))
                 }
             }
         }
@@ -349,11 +351,11 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = "Score: ${game.score}",
+                        text = stringResource(R.string.score, game.score),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Highscore: $highscore",
+                        text = stringResource(R.string.highscore, highscore),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
@@ -418,18 +420,18 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         .zIndex(10f)
                 ) {
                     Text(
-                        text = if (game.score > highscore) "New Highscore!" else "Game Over",
+                        text = if (game.score > highscore) stringResource(R.string.new_highscore) else stringResource(R.string.game_over),
                         style = MaterialTheme.typography.displayMedium,
                         color = if (game.score > highscore) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Score: ${game.score}",
+                        text = stringResource(R.string.score, game.score),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "Highscore: $highscore",
+                        text = stringResource(R.string.highscore, highscore),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
@@ -438,9 +440,9 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         Button(onClick = {
                             gameViewModel.newGame()
                             gameViewModel.canUndo()
-                        }) { Text("Play Again") }
+                        }) { Text(stringResource(R.string.play_again)) }
                         Button(onClick = { showNewGameOptions.value = true }) {
-                            Text("Customize")
+                            Text(stringResource(R.string.customize))
                         }
                     }
                 }
@@ -469,23 +471,30 @@ fun AchievementNotification(
         blockSize: Dp,
         modifier: Modifier = Modifier
 ) {
-    val congratulations = remember {
-        listOf("Well done!", "Nice!", "Great!", "Awesome!", "Good job!", "Fantastic!")
-    }
-    val message =
-            remember(achievement) {
-                val parts = mutableListOf<String>()
-                if (achievement.isMinimalist)
-                        parts.add("Minimalist! No more than absolutely necessary.")
-                else if (achievement.blockRemoved) parts.add("Come and Gone!")
+    val congratulations = stringArrayResource(R.array.congratulations)
 
-                if (achievement.isNewRecord)
-                        parts.add("New Record! ${achievement.cleared} lines cleared!")
-                if (parts.isEmpty() && achievement.cleared > 1) {
-                    parts.add("${congratulations.random()} ${achievement.cleared} lines cleared!")
-                }
-                parts.joinToString(" ")
-            }
+    val parts = mutableListOf<String>()
+    if (achievement.isMinimalist)
+        parts.add(stringResource(R.string.notify_minimalist))
+    else if (achievement.blockRemoved)
+        parts.add(stringResource(R.string.notify_come_and_gone))
+
+    if (achievement.isNewRecord)
+        parts.add(
+            stringResource(R.string.notify_new_record, achievement.cleared)
+        )
+    if (parts.isEmpty())
+        parts.add(congratulations.random())
+    if (achievement.cleared > 1)
+        parts.add(
+            stringResource(
+                R.string.notify_cleared_lines,
+                achievement.cleared
+            )
+        )
+    val message = remember(achievement) {
+        parts.joinToString(" ")
+    }
 
     Box(
             modifier.clip(RoundedCornerShape(16.dp))

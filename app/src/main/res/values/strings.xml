@@ -1,3 +1,84 @@
 <resources>
     <string name="app_name">blocks</string>
+
+    <!-- Game -->
+    <string name="score">Score: %1$d</string>
+    <string name="highscore">Highscore: %1$d</string>
+    <string name="new_highscore">New Highscore!</string>
+    <string name="game_over">Game Over</string>
+    <string name="play_again">Play Again</string>
+    <string name="customize">Customize</string>
+
+    <!-- Accessibility -->
+    <string name="undo">Undo</string>
+    <string name="hint">Hint</string>
+    <string name="new_game">New Game</string>
+    <string name="settings">Settings</string>
+
+    <!-- New Game Options -->
+    <string name="new_game_options_title">New Game Options</string>
+    <string name="width_and_height">Width and Height</string>
+    <string name="width">Width</string>
+    <string name="height">Height</string>
+    <string name="square_board">Square Board</string>
+    <string name="start_game">Start Game</string>
+    <string name="cancel">Cancel</string>
+    <string name="computation_warning">Computations for boards with more than 64 positions are much slower and use more battery. There are currently %1$d = %2$d (Width) * %3$d (Height) positions.</string>
+
+    <!-- Settings -->
+    <string name="settings_gameplay">Gameplay</string>
+    <string name="settings_computation">Computation</string>
+    <string name="settings_allow_undo">Allow Undo</string>
+    <string name="settings_show_undo_button">Show Undo Button</string>
+    <string name="settings_show_new_game_button">Show New Game Button</string>
+    <string name="settings_achievements">Achievements</string>
+    <string name="settings_view_achievements">View Achievements</string>
+    <string name="settings_show_minimalist">Show Minimalist</string>
+    <string name="settings_show_come_and_gone">Show Come and Gone</string>
+    <string name="settings_show_new_record">Show New Record</string>
+    <string name="settings_show_cleared_lines">Show Cleared Lines</string>
+    <string name="settings_transparency">Transparency</string>
+    <string name="save">Save</string>
+
+    <!-- Settings Enums -->
+    <string name="compute_auto">Auto</string>
+    <string name="compute_button">Button</string>
+    <string name="compute_hidden">Hidden</string>
+
+    <string name="undo_always">Always</string>
+    <string name="undo_unless_new_blocks">Unless New Blocks</string>
+    <string name="undo_never">Never</string>
+
+    <string name="filter_always">Always</string>
+    <string name="filter_except_thin">Except Thin</string>
+    <string name="filter_never">Never</string>
+
+    <!-- Achievements -->
+    <string name="achievements_title">Achievements</string>
+    <string name="achievement_back">Back</string>
+    <string name="achievement_personal_best">Personal Best</string>
+    <string name="achievement_no_record">No record yet</string>
+    <string name="achievement_lines_cleared">%1$d / %2$d lines cleared</string>
+    <string name="badge_come_and_gone">Come &amp; Gone</string>
+    <string name="badge_minimalist">Minimalist</string>
+
+    <!-- Achievement Notifications -->
+    <string name="notify_minimalist">Minimalist! No more than absolutely necessary.</string>
+    <string name="notify_come_and_gone">Come and Gone!</string>
+    <string name="notify_new_record">New Record!</string>
+    <string name="notify_cleared_lines">%1$d lines cleared!</string>
+
+    <string-array name="congratulations">
+        <item>Well done!</item>
+        <item>Nice!</item>
+        <item>Great!</item>
+        <item>Awesome!</item>
+        <item>Good job!</item>
+        <item>Fantastic!</item>
+    </string-array>
+
+    <!-- Options Preview -->
+    <string name="preview_select">select</string>
+    <string name="preview_selected">selected</string>
+
 </resources>

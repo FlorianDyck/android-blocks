@@ -1,0 +1,84 @@
+<resources>
+    <string name="app_name">blocks</string>
+
+    <!-- Game -->
+    <string name="score">Punkte: %1$d</string>
+    <string name="highscore">Rekord: %1$d</string>
+    <string name="new_highscore">Neuer Rekord!</string>
+    <string name="game_over">Spiel Vorbei</string>
+    <string name="play_again">Nochmal Spielen</string>
+    <string name="customize">Anpassen</string>
+
+    <!-- Accessibility -->
+    <string name="undo">Rückgängig</string>
+    <string name="hint">Hinweis</string>
+    <string name="new_game">Neues Spiel</string>
+    <string name="settings">Einstellungen</string>
+
+    <!-- New Game Options -->
+    <string name="new_game_options_title">Neues Spiel Optionen</string>
+    <string name="width_and_height">Breite und Höhe</string>
+    <string name="width">Breite</string>
+    <string name="height">Höhe</string>
+    <string name="square_board">Quadratisches Brett</string>
+    <string name="start_game">Spiel Starten</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="computation_warning">Berechnungen für Bretter mit mehr als 64 Feldern sind langsamer und verbrauchen mehr Akku. Aktuell gibt es %1$d = %2$d (Breite) * %3$d (Höhe) Felder.</string>
+
+    <!-- Settings -->
+    <string name="settings_gameplay">Gameplay</string>
+    <string name="settings_computation">Berechnung</string>
+    <string name="settings_allow_undo">Rückgängig Erlauben</string>
+    <string name="settings_show_undo_button">Zeige Rückgängig-Knopf</string>
+    <string name="settings_show_new_game_button">Zeige Neues Spiel-Knopf</string>
+    <string name="settings_achievements">Errungenschaften</string>
+    <string name="settings_view_achievements">Errungenschaften Ansehen</string>
+    <string name="settings_show_minimalist">Zeige Minimalist</string>
+    <string name="settings_show_come_and_gone">Zeige Da &amp; Weg</string>
+    <string name="settings_show_new_record">Zeige Neuen Rekord</string>
+    <string name="settings_show_cleared_lines">Zeige Entfernte Zeilen</string>
+    <string name="settings_transparency">Transparenz</string>
+    <string name="save">Speichern</string>
+
+    <!-- Settings Enums -->
+    <string name="compute_auto">Automatisch</string>
+    <string name="compute_button">Knopf</string>
+    <string name="compute_hidden">Versteckt</string>
+
+    <string name="undo_always">Immer</string>
+    <string name="undo_unless_new_blocks">Außer neue Blöcke</string>
+    <string name="undo_never">Niemals</string>
+
+    <string name="filter_always">Immer</string>
+    <string name="filter_except_thin">Außer Dünne</string>
+    <string name="filter_never">Niemals</string>
+
+    <!-- Achievements -->
+    <string name="achievements_title">Errungenschaften</string>
+    <string name="achievement_back">Zurück</string>
+    <string name="achievement_personal_best">Persönlicher Rekord</string>
+    <string name="achievement_no_record">Noch kein Rekord</string>
+    <string name="achievement_lines_cleared">%1$d / %2$d Zeilen entfernt</string>
+    <string name="badge_come_and_gone">Da &amp; Weg</string>
+    <string name="badge_minimalist">Minimalist</string>
+
+    <!-- Achievement Notifications -->
+    <string name="notify_minimalist">Minimalist! Nicht mehr als absolut notwendig.</string>
+    <string name="notify_come_and_gone">Da und Weg!</string>
+    <string name="notify_new_record">Neuer Rekord!</string>
+    <string name="notify_cleared_lines">%1$d Zeilen entfernt!</string>
+
+    <string-array name="congratulations">
+        <item>Gut gemacht!</item>
+        <item>Nett!</item>
+        <item>Großartig!</item>
+        <item>Wahnsinn!</item>
+        <item>Gute Arbeit!</item>
+        <item>Fantastisch!</item>
+    </string-array>
+
+    <!-- Options Preview -->
+    <string name="preview_select">Auswahl</string>
+    <string name="preview_selected">Ausgewählt</string>
+
+</resources>
