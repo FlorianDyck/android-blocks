@@ -442,7 +442,9 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                     val congratulations = remember { listOf("Well done!", "Nice!", "Great!", "Awesome!", "Good job!", "Fantastic!") }
                     val message = remember(achievement) {
                         val parts = mutableListOf<String>()
-                        if (achievement.blockRemoved) parts.add("Come and Gone!")
+                        if (achievement.isMinimalist) parts.add("Minimalist! No more than absolutely necessary.")
+                        else if (achievement.blockRemoved) parts.add("Come and Gone!")
+                        
                         if (achievement.isNewRecord) parts.add("New Record! ${achievement.cleared} lines cleared!")
                         if (parts.isEmpty() && achievement.cleared > 1) {
                             parts.add("${congratulations.random()} ${achievement.cleared} lines cleared!")

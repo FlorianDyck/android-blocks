@@ -73,7 +73,8 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
                 AchievementItem(
                     brick = brick,
                     maxLines = achievement?.maxLinesCleared ?: 0,
-                    comeAndGone = achievement?.comeAndGone ?: false
+                    comeAndGone = achievement?.comeAndGone ?: false,
+                    minimalist = achievement?.minimalist ?: false
                 )
             }
         }
@@ -81,7 +82,7 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean) {
+fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean, minimalist: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -115,12 +116,21 @@ fun AchievementItem(brick: Brick, maxLines: Int, comeAndGone: Boolean) {
                     )
                     if (isNarrow && comeAndGone) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        ComeAndGoneBadge()
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ComeAndGoneBadge()
+                            if (minimalist) MinimalistBadge()
+                        }
                     }
                 }
 
                 if (!isNarrow && comeAndGone) {
-                    ComeAndGoneBadge()
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ComeAndGoneBadge()
+                        if (minimalist) MinimalistBadge()
+                    }
                 }
             }
         }
@@ -136,6 +146,20 @@ private fun ComeAndGoneBadge() {
     ) {
         Text(
             text = "Come & Gone",
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+@Composable
+private fun MinimalistBadge() {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text = "Minimalist",
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall
         )

@@ -10,8 +10,10 @@ data class GameState(
 ) {
     fun lost() = (0..2).all { bricks[it] == null || !board.canPlace(bricks[it]!!.brick) }
 
-    fun place(index: Int, position: IntOffset): Pair<GameState, Boolean> {
-        val (newBoard, cleared, blockRemoved) = board.place(bricks[index]!!.offset(position))
+    data class Placement(val state: GameState, val blockRemoved: Boolean, val cellsCleared: Int)
+
+    fun place(index: Int, position: IntOffset): Placement {
+        val (newBoard, cleared, cellsCleared, blockRemoved) = board.place(bricks[index]!!.offset(position))
         var newBricks = bricks.clone()
         newBricks[index] = null
         if (newBricks.all { it == null }) {
@@ -22,7 +24,7 @@ data class GameState(
             newBricks,
             score + cleared
         )
-        return Pair(newState, blockRemoved)
+        return Placement(newState, blockRemoved, cellsCleared)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -105,7 +105,8 @@ class GameViewModel(
         val brick: ColoredBrick,
         val cleared: Int,
         val isNewRecord: Boolean,
-        val blockRemoved: Boolean
+        val blockRemoved: Boolean,
+        val isMinimalist: Boolean
     )
 
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
@@ -143,7 +144,7 @@ class GameViewModel(
         val brick = coloredBrick.brick
         val oldScore = game.value.score
         
-        val (nextState, blockRemoved) = game.value.place(index, position)
+        val (nextState, blockRemoved, cellsCleared) = game.value.place(index, position)
         updateGameState(nextState)
         
         val cleared = game.value.score - oldScore
@@ -152,12 +153,15 @@ class GameViewModel(
             viewModelScope.launch {
                 val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
                 val isNewRecord = cleared > currentRecord
+                val minCells = brick.minCellsToClear(game.value.board.width, game.value.board.height)
+                val isMinimalist = blockRemoved && cellsCleared == minCells
 
                 if (blockRemoved) gameRepository.markComeAndGone(brick)
                 if (isNewRecord) gameRepository.updateBlockAchievement(brick, cleared)
+                if (isMinimalist) gameRepository.markMinimalist(brick)
 
-                if (blockRemoved || isNewRecord || cleared > 1) {
-                    _achievementEvents.emit(Achievement(coloredBrick, cleared, isNewRecord, blockRemoved))
+                if (blockRemoved || isNewRecord || isMinimalist || cleared > 1) {
+                    _achievementEvents.emit(Achievement(coloredBrick, cleared, isNewRecord, blockRemoved, isMinimalist))
                 }
             }
         }

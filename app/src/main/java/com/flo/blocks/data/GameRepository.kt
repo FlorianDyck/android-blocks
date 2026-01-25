@@ -37,7 +37,7 @@ open class GameRepository(
             if (needsMigration) {
                 blockAchievementDao.clearAllAchievements()
                 for ((brick, maxLines) in canonicalAchievements) {
-                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines, false))
+                    blockAchievementDao.upsertAchievement(BlockAchievement(brick, maxLines, false, false))
                 }
             }
         }
@@ -87,7 +87,8 @@ open class GameRepository(
                     BlockAchievement(
                         canonicalBrick,
                         lines,
-                        current?.comeAndGone ?: false
+                        current?.comeAndGone ?: false,
+                        current?.minimalist ?: false
                     )
                 )
             }
@@ -103,6 +104,24 @@ open class GameRepository(
                     BlockAchievement(
                         canonicalBrick,
                         current?.maxLinesCleared ?: 0,
+                        true,
+                        current?.minimalist ?: false
+                    )
+                )
+            }
+        }
+    }
+
+    open suspend fun markMinimalist(brick: Brick) {
+        withContext(Dispatchers.IO) {
+            val canonicalBrick = brick.canonical
+            val current = blockAchievementDao.getAchievement(canonicalBrick)
+            if (current == null || !current.minimalist) {
+                blockAchievementDao.upsertAchievement(
+                    BlockAchievement(
+                        canonicalBrick,
+                        current?.maxLinesCleared ?: 0,
+                        current?.comeAndGone ?: false,
                         true
                     )
                 )

@@ -2,7 +2,7 @@ package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 
-data class PlacementResult(val board: ColoredBoard, val cleared: Int, val blockRemoved: Boolean)
+data class PlacementResult(val board: ColoredBoard, val cleared: Int, val cellsCleared: Int, val blockRemoved: Boolean)
 
 data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockColor>) {
 
@@ -59,6 +59,9 @@ data class ColoredBoard(val width: Int, val height: Int, val board: Array<BlockC
         for (row in rows) for (line in lineIndices) result[row, line] = BlockColor.BACKGROUND
 
         val blockRemoved = positions.all { it.y in lines || it.x in rows }
-        return PlacementResult(result, lines.size + rows.size, blockRemoved)
+        val r = lines.size
+        val c = rows.size
+        val cellsCleared = r * width + c * height - r * c
+        return PlacementResult(result, r + c, cellsCleared, blockRemoved)
     }
 }

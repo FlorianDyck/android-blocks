@@ -47,6 +47,7 @@ class GameViewModelTest {
     class FakeGameRepository : GameRepository(mock(), mock()) {
         private val records = mutableMapOf<com.flo.blocks.game.Brick, Int>()
         private val comeAndGones = mutableSetOf<com.flo.blocks.game.Brick>()
+        private val minimalists = mutableSetOf<com.flo.blocks.game.Brick>()
 
         override suspend fun initialize() {}
         override suspend fun getLatestState(): Pair<com.flo.blocks.game.GameState, Int>? = null
@@ -58,7 +59,8 @@ class GameViewModelTest {
             return com.flo.blocks.data.BlockAchievement(
                 canonical,
                 records[canonical] ?: 0,
-                comeAndGones.contains(canonical)
+                comeAndGones.contains(canonical),
+                minimalists.contains(canonical)
             )
         }
         override suspend fun updateBlockAchievement(brick: com.flo.blocks.game.Brick, lines: Int) {
@@ -66,6 +68,9 @@ class GameViewModelTest {
         }
         override suspend fun markComeAndGone(brick: com.flo.blocks.game.Brick) {
             comeAndGones.add(brick.canonical)
+        }
+        override suspend fun markMinimalist(brick: com.flo.blocks.game.Brick) {
+            minimalists.add(brick.canonical)
         }
     }
 
@@ -285,6 +290,72 @@ class GameViewModelTest {
         assertEquals(false, ach2.blockRemoved)
         assertEquals(false, ach2.isNewRecord)
         assertEquals(2, ach2.cleared)
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `placeBrick triggers minimalist achievement for L-shape`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<GameViewModel.Achievement>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // 3x3 L-shape brick (user example): 0,0, 0,1, 0,2, 1,2, 2,2
+        // Min cells to clear: 1 row + 1 col = 1*8 + 1*8 - 1 = 15 cells.
+        val brick = com.flo.blocks.game.rect(0, 0, 0, 2) + com.flo.blocks.game.rect(0, 2, 2, 2)
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        // Setup state to clear col 0 and row 2
+        for (y in 0..7) if (y != 2) board[0, y] = com.flo.blocks.game.BlockColor.BLUE
+        for (x in 0..7) if (x != 0) board[x, 2] = com.flo.blocks.game.BlockColor.BLUE
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        val ach = events[0]
+        assertEquals(true, ach.blockRemoved)
+        assertEquals(true, ach.isMinimalist)
+        
+        job.cancel()
+    }
+
+    @Test
+    fun `placeBrick triggers minimalist achievement for 2x2 block`() = runTest(testDispatcher) {
+        val viewModel = GameViewModel(settingsRepository, gameRepository)
+        advanceUntilIdle()
+
+        val events = mutableListOf<GameViewModel.Achievement>()
+        val job = launch {
+            viewModel.achievementEvents.collect { events.add(it) }
+        }
+
+        // 2x2 block: 0,0, 1,0, 0,1, 1,1
+        // Min cells to clear: 2 rows = 16 cells OR 2 cols = 16 cells.
+        val brick = com.flo.blocks.game.rect(0, 0, 1, 1)
+        val coloredBrick = com.flo.blocks.game.ColoredBrick(brick, com.flo.blocks.game.BlockColor.RED)
+        
+        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+        // Setup state to clear row 0 and row 1
+        for (x in 0..7) board[x, 0] = com.flo.blocks.game.BlockColor.BLUE
+        for (x in 0..7) board[x, 1] = com.flo.blocks.game.BlockColor.BLUE
+        
+        viewModel.game.value = com.flo.blocks.game.GameState(board, arrayOf(coloredBrick, null, null), 0)
+        
+        viewModel.placeBrick(0, androidx.compose.ui.unit.IntOffset(0, 0))
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        val ach = events[0]
+        assertEquals(true, ach.blockRemoved)
+        assertEquals(true, ach.isMinimalist)
         
         job.cancel()
     }
