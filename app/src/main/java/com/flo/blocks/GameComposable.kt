@@ -91,6 +91,7 @@ fun vibrateCallback(context: Context): () -> Unit {
             vibratorManager.vibrate(CombinedVibration.createParallel(effect))
         }
     } else {
+        @Suppress("DEPRECATION")
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val effect = VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE)
@@ -188,19 +189,18 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
 
     val hovering by
             remember(game, blockDensity) {
-        derivedStateOf {
-            blockPosition?.let {
-                game.bricks[offset!!.first]?.brick?.offset(
-                        ((it - boardPosition) / blockDensity.toFloat()).round()
-
+                derivedStateOf {
+                    blockPosition?.let {
+                        game.bricks[offset!!.first]?.brick?.offset(
+                                ((it - boardPosition) / blockDensity.toFloat()).round()
                         )
                     }
                 }
             }
     val selected by
             remember(game, hovering) {
-        derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false }
-    }
+                derivedStateOf { hovering?.let { game.board.canPlace(it) } ?: false }
+            }
 
     @Composable
     fun Board(board: ColoredBoard, blockSize: Dp) {
@@ -515,7 +515,13 @@ fun AchievementNotification(
     }
     if (parts.isEmpty()) parts.add(congratulations.random())
     if (achievement.cleared > 1)
-            parts.add(stringResource(R.string.notify_cleared_lines, achievement.cleared))
+            parts.add(
+                    androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.notify_cleared_lines,
+                            achievement.cleared,
+                            achievement.cleared
+                    )
+            )
     val message = remember(achievement) { parts.joinToString(" ") }
 
     Box(
