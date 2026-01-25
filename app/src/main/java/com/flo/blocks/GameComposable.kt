@@ -63,12 +63,11 @@ import androidx.compose.ui.zIndex
 import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
+import kotlin.math.max
+import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlin.math.max
-import kotlin.math.min
-
 
 @Composable
 fun Block(color: Color, size: Dp, content: @Composable () -> Unit = {}) {
@@ -200,10 +199,11 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
 
     val hovering by
             remember(game, blockDensity) {
-                derivedStateOf {
-                    blockPosition?.let {
-                        game.bricks[offset!!.first]?.brick?.offset(
-                                ((it - boardPosition) / blockDensity.toFloat()).round()
+        derivedStateOf {
+            blockPosition?.let {
+                game.bricks[offset!!.first]?.brick?.offset(
+                        ((it - boardPosition) / blockDensity.toFloat()).round()
+
                         )
                     }
                 }
@@ -311,9 +311,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val showUndo by gameViewModel.showUndo.collectAsState(false)
                 AnimatedVisibility(visible = showUndo) {
-                    FloatingActionButton(onClick = {
-                        gameViewModel.undo()
-                    }) {
+                    FloatingActionButton(onClick = { gameViewModel.undo() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "undo")
                     }
                 }
@@ -436,15 +434,11 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                     Spacer(modifier = Modifier.height(32.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Button(onClick = {
                             gameViewModel.newGame()
                             gameViewModel.canUndo()
-                        }) {
-                            Text("Play Again")
-                        }
+                        }) { Text("Play Again") }
                         Button(onClick = { showNewGameOptions.value = true }) {
                             Text("Customize")
                         }
@@ -460,48 +454,54 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                     .zIndex(20f)
             ) {
                 achievementMessage?.let { achievement ->
-                    val congratulations = remember {
-                        listOf(
-                            "Well done!",
-                            "Nice!",
-                            "Great!",
-                            "Awesome!",
-                            "Good job!",
-                            "Fantastic!"
-                        )
-                    }
-                    val message = remember(achievement) {
-                        val parts = mutableListOf<String>()
-                        if (achievement.isMinimalist) parts.add("Minimalist! No more than absolutely necessary.")
-                        else if (achievement.blockRemoved) parts.add("Come and Gone!")
-
-                        if (achievement.isNewRecord) parts.add("New Record! ${achievement.cleared} lines cleared!")
-                        if (parts.isEmpty() && achievement.cleared > 1) {
-                            parts.add("${congratulations.random()} ${achievement.cleared} lines cleared!")
-                        }
-                        parts.joinToString(" ")
-                    }
-
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .padding(horizontal = 24.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Brick(achievement.brick, (blockSize / 2).dp)
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
+                    val achievementAlpha by gameViewModel.achievementAlpha.collectAsState()
+                    AchievementNotification(achievement, achievementAlpha, blockSize.dp)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AchievementNotification(
+        achievement: GameViewModel.Achievement,
+        alpha: Float,
+        blockSize: Dp,
+        modifier: Modifier = Modifier
+) {
+    val congratulations = remember {
+        listOf("Well done!", "Nice!", "Great!", "Awesome!", "Good job!", "Fantastic!")
+    }
+    val message =
+            remember(achievement) {
+                val parts = mutableListOf<String>()
+                if (achievement.isMinimalist)
+                        parts.add("Minimalist! No more than absolutely necessary.")
+                else if (achievement.blockRemoved) parts.add("Come and Gone!")
+
+                if (achievement.isNewRecord)
+                        parts.add("New Record! ${achievement.cleared} lines cleared!")
+                if (parts.isEmpty() && achievement.cleared > 1) {
+                    parts.add("${congratulations.random()} ${achievement.cleared} lines cleared!")
+                }
+                parts.joinToString(" ")
+            }
+
+    Box(
+            modifier.clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = alpha))
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+    ) {
+        Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Brick(achievement.brick, (blockSize / 2))
+            Text(
+                    text = message,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
     }
 }

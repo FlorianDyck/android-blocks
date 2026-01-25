@@ -1,10 +1,10 @@
 package com.flo.blocks
 
-
 import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flo.blocks.data.AchievementFilter
 import com.flo.blocks.data.GameRepository
 import com.flo.blocks.data.SettingsRepository
 import com.flo.blocks.game.BitContext
@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Stack
+import kotlin.math.min
 
 class GameViewModel(
     private val settingsRepository: SettingsRepository,
@@ -62,6 +63,32 @@ class GameViewModel(
             canUndo.value = canUndo()
         }
 
+    var achievementShowMinimalist = AchievementFilter.Always
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveAchievementShowMinimalist(value) }
+        }
+    var achievementShowComeAndGone = AchievementFilter.Always
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveAchievementShowComeAndGone(value) }
+        }
+    var achievementShowNewRecord = true
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveAchievementShowNewRecord(value) }
+        }
+    var achievementShowClearedLines = true
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveAchievementShowClearedLines(value) }
+        }
+    val achievementAlpha = MutableStateFlow(0.9f)
+
+    fun setAchievementAlpha(alpha: Float) {
+        viewModelScope.launch { settingsRepository.saveAchievementAlpha(alpha) }
+    }
+
     init {
         viewModelScope.launch {
             val width = settingsRepository.boardWidthFlow.first()
@@ -84,11 +111,37 @@ class GameViewModel(
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
             showNewGameButton.value = settingsRepository.showNewGameButtonFlow.first()
+            achievementShowMinimalist = settingsRepository.achievementShowMinimalistFlow.first()
+            achievementShowComeAndGone = settingsRepository.achievementShowComeAndGoneFlow.first()
+            achievementShowNewRecord = settingsRepository.achievementShowNewRecordFlow.first()
+            achievementShowClearedLines = settingsRepository.achievementShowClearedLinesFlow.first()
+            achievementAlpha.value = settingsRepository.achievementAlphaFlow.first()
 
             viewModelScope.launch {
-                settingsRepository.highscoreFlow.collect {
-                    highscore.value = it
+                settingsRepository.highscoreFlow.collect { highscore.value = it }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementShowMinimalistFlow.collect {
+                    achievementShowMinimalist = it
                 }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementShowComeAndGoneFlow.collect {
+                    achievementShowComeAndGone = it
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementShowNewRecordFlow.collect {
+                    achievementShowNewRecord = it
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementShowClearedLinesFlow.collect {
+                    achievementShowClearedLines = it
+                }
+            }
+            viewModelScope.launch {
+                settingsRepository.achievementAlphaFlow.collect { achievementAlpha.value = it }
             }
         }
     }
@@ -179,12 +232,18 @@ class GameViewModel(
                 val minCells =
                     brick.minCellsToClear(game.value.board.width, game.value.board.height)
                 val isMinimalist = blockRemoved && cellsCleared == minCells
+                val isThin = min(brick.width, brick.height) == 1
 
                 if (blockRemoved) gameRepository.markComeAndGone(brick)
                 if (isNewRecord) gameRepository.updateBlockAchievement(brick, cleared)
                 if (isMinimalist) gameRepository.markMinimalist(brick)
 
-                if (blockRemoved || isNewRecord || isMinimalist || cleared > 1) {
+                if (
+                    (blockRemoved && achievementShowComeAndGone.shouldShow(isThin))
+                    or (isNewRecord && achievementShowNewRecord)
+                    or (isMinimalist && achievementShowMinimalist.shouldShow(isThin))
+                    or (cleared > 1 && achievementShowClearedLines)
+                ) {
                     _achievementEvents.emit(
                         Achievement(
                             coloredBrick,
@@ -239,10 +298,10 @@ class GameViewModel(
         gameStateIndex--
 
         viewModelScope.launch {
-            // We just need to ensure the DB knows current state is now previous index 
-            // In our append-only logic, we might not need to do anything if we rely on index, 
+            // We just need to ensure the DB knows current state is now previous index
+            // In our append-only logic, we might not need to do anything if we rely on index,
             // but effectively we are "restoring" an old state.
-            // If we want to persist the 'undo' action, we should probably delete the 'future' state 
+            // If we want to persist the 'undo' action, we should probably delete the 'future' state
             // which the repository saveGameState does (deleteStatesAfter).
             // So re-saving the popped state at the new index ensures consistency.
             gameRepository.saveGameState(game.value, gameStateIndex)

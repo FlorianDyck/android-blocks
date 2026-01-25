@@ -3,16 +3,23 @@ package com.flo.blocks
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -29,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,11 +44,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.flo.blocks.data.AchievementFilter
+import com.flo.blocks.game.BlockColor
+import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBoard
+import com.flo.blocks.game.ColoredBrick
 
 @Composable
 fun SelectNumber(description: String, initialValue: Int, set: (Int) -> Unit) {
@@ -255,85 +268,221 @@ fun NewGameOptions(
 fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close: () -> Unit) {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {
+            // Hoist state variables
+            var computeEnabled by remember { mutableStateOf(computeViewModel.computeEnabled) }
+            var undoEnabled by remember { mutableStateOf(computeViewModel.undoEnabled) }
+            var showBackIfEnabled by remember {
+                mutableStateOf(computeViewModel.showUndoIfEnabled.value)
+            }
+            var showNewGameButton by remember {
+                mutableStateOf(computeViewModel.showNewGameButton.value)
+            }
+            var achievementShowMinimalist by remember {
+                mutableStateOf(computeViewModel.achievementShowMinimalist)
+            }
+            var achievementShowComeAndGone by remember {
+                mutableStateOf(computeViewModel.achievementShowComeAndGone)
+            }
+            var achievementShowNewRecord by remember {
+                mutableStateOf(computeViewModel.achievementShowNewRecord)
+            }
+            var achievementShowClearedLines by remember {
+                mutableStateOf(computeViewModel.achievementShowClearedLines)
+            }
+            var achievementAlpha by remember {
+                mutableFloatStateOf(computeViewModel.achievementAlpha.value)
+            }
+
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "Gameplay",
-                    Modifier.padding(8.dp),
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                Button(
-                    onClick = openAchievements,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                // Scrollable container for settings
+                Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("View Achievements")
-                }
+                    Text(
+                            "Gameplay",
+                            Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.titleLarge
+                    )
 
-                var computeEnabled by remember {
-                    mutableStateOf(computeViewModel.computeEnabled)
+                    SelectPossibleValue(
+                            "Computation",
+                            computeEnabled,
+                            GameViewModel.ComputeEnabled.entries
+                    ) { computeEnabled = it }
+                    SelectPossibleValue(
+                            "Allow Undo",
+                            undoEnabled,
+                            GameViewModel.UndoEnabled.entries
+                    ) { undoEnabled = it }
+                    SelectOption(
+                            "Show Undo Button",
+                            showBackIfEnabled,
+                            undoEnabled != GameViewModel.UndoEnabled.Never
+                    ) { showBackIfEnabled = it }
+                    SelectOption("Show New Game Button", showNewGameButton) {
+                        showNewGameButton = it
+                    }
+
+                    Text(
+                            "Achievements",
+                            Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.titleLarge
+                    )
+
+                    Button(
+                            onClick = openAchievements,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                    ) { Text("View Achievements") }
+
+                    SelectPossibleValue(
+                            "Show Minimalist",
+                            achievementShowMinimalist,
+                            AchievementFilter.entries
+                    ) { achievementShowMinimalist = it }
+                    SelectPossibleValue(
+                            "Show Come and Gone",
+                            achievementShowComeAndGone,
+                            AchievementFilter.entries
+                    ) { achievementShowComeAndGone = it }
+                    SelectOption("Show New Record", achievementShowNewRecord) {
+                        achievementShowNewRecord = it
+                    }
+                    SelectOption("Show Cleared Lines", achievementShowClearedLines) {
+                        achievementShowClearedLines = it
+                    }
+
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                                "Transparency",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center
+                        )
+                        androidx.compose.material3.Slider(
+                                value = 1f - achievementAlpha,
+                                onValueChange = { achievementAlpha = 1f - it },
+                                valueRange = 0f..0.9f,
+                                modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+                        )
+                        Text(
+                                "${((1f - achievementAlpha) * 100).toInt()}%",
+                                Modifier.width(50.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.End
+                        )
+                    }
+                    BoxWithConstraints(
+                            Modifier.padding(16.dp)
+                                    .height(100.dp)
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                    ) { OptionsPreviewBoard(maxWidth, maxHeight, achievementAlpha) }
                 }
-                SelectPossibleValue(
-                    "Computation",
-                    computeEnabled,
-                    GameViewModel.ComputeEnabled.entries
-                ) {
-                    computeEnabled = it
-                }
-                var undoEnabled by remember {
-                    mutableStateOf(computeViewModel.undoEnabled)
-                }
-                SelectPossibleValue("Allow Undo", undoEnabled, GameViewModel.UndoEnabled.entries) {
-                    undoEnabled = it
-                }
-                var showBackIfEnabled by remember {
-                    mutableStateOf(computeViewModel.showUndoIfEnabled.value)
-                }
-                SelectOption(
-                    "Show Undo Button",
-                    showBackIfEnabled,
-                    undoEnabled != GameViewModel.UndoEnabled.Never
-                ) { showBackIfEnabled = it }
-                var showNewGameButton by remember {
-                    mutableStateOf(computeViewModel.showNewGameButton.value)
-                }
-                SelectOption(
-                    "Show New Game Button",
-                    showNewGameButton
-                ) { showNewGameButton = it }
 
                 val save = {
                     computeViewModel.computeEnabled = computeEnabled
                     computeViewModel.undoEnabled = undoEnabled
                     computeViewModel.showUndoIfEnabled.value = showBackIfEnabled
                     computeViewModel.showNewGameButton.value = showNewGameButton
+                    computeViewModel.achievementShowMinimalist = achievementShowMinimalist
+                    computeViewModel.achievementShowComeAndGone = achievementShowComeAndGone
+                    computeViewModel.achievementShowNewRecord = achievementShowNewRecord
+                    computeViewModel.achievementShowClearedLines = achievementShowClearedLines
+                    computeViewModel.setAchievementAlpha(achievementAlpha)
                 }
                 val anySettingChange by remember {
                     derivedStateOf {
                         computeViewModel.computeEnabled != computeEnabled ||
                                 computeViewModel.undoEnabled != undoEnabled ||
                                 computeViewModel.showUndoIfEnabled.value != showBackIfEnabled ||
-                                computeViewModel.showNewGameButton.value != showNewGameButton
+                                computeViewModel.showNewGameButton.value != showNewGameButton ||
+                                computeViewModel.achievementShowMinimalist !=
+                                        achievementShowMinimalist ||
+                                computeViewModel.achievementShowComeAndGone !=
+                                        achievementShowComeAndGone ||
+                                computeViewModel.achievementShowNewRecord !=
+                                        achievementShowNewRecord ||
+                                computeViewModel.achievementShowClearedLines !=
+                                        achievementShowClearedLines ||
+                                computeViewModel.achievementAlpha.value != achievementAlpha
                     }
                 }
+                // Fixed footer buttons
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(close, Modifier.weight(1f)) {
-                        Text(text = "Cancel")
-                    }
-                    Button({
-                        save()
-                        close()
-                    }, Modifier.weight(1f), anySettingChange) {
-                        Text(text = "Save")
-                    }
+                    Button(close, Modifier.weight(1f)) { Text(text = "Cancel") }
+                    Button(
+                            {
+                                save()
+                                close()
+                            },
+                            Modifier.weight(1f),
+                            anySettingChange
+                    ) { Text(text = "Save") }
                 }
             }
         }
     }
+}
+
+@Composable
+fun OptionsPreviewBoard(
+        maxWidth: androidx.compose.ui.unit.Dp,
+        maxHeight: androidx.compose.ui.unit.Dp,
+        achievementAlpha: Float
+) {
+    val boardWidth = 8
+    val boardHeight = 3
+    val blockSize =
+            if (maxWidth / boardWidth < maxHeight / boardHeight) maxWidth / boardWidth
+            else maxHeight / boardHeight
+
+    // Background Board Pattern
+    val previewBoard = remember {
+        ColoredBoard(boardWidth, boardHeight).apply {
+            this[2, 0] = BlockColor.RED
+            this[3, 0] = BlockColor.RED
+            this[2, 1] = BlockColor.RED
+            this[3, 1] = BlockColor.RED
+
+            this[6, 2] = BlockColor.ORANGE
+            this[7, 2] = BlockColor.ORANGE
+
+            this[0, 1] = BlockColor.GREEN
+            this[0, 2] = BlockColor.GREEN
+        }
+    }
+    Column {
+        for (y in 0 until boardHeight) {
+            Row {
+                for (x in 0 until boardWidth) {
+                    Block(previewBoard[x, y].color, blockSize)
+                }
+            }
+        }
+    }
+
+    // Achievement Notification Overlay
+    val dummyAchievement = remember {
+        GameViewModel.Achievement(
+                brick = ColoredBrick(Brick(1, 1, booleanArrayOf(true)), BlockColor.BLUE),
+                cleared = 4,
+                isNewRecord = true,
+                blockRemoved = false,
+                isMinimalist = false
+        )
+    }
+
+    AchievementNotification(
+            achievement = dummyAchievement,
+            alpha = achievementAlpha,
+            blockSize = 40.dp
+    )
 }
