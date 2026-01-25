@@ -39,7 +39,7 @@
     <string name="settings_show_cleared_lines">Zeige Entfernte Zeilen</string>
     <string name="settings_show_around_the_corner">Zeige Um die Ecke</string>
     <string name="settings_transparency">Transparenz</string>
-    <string name="save">Speichern</string>
+
 
     <!-- Settings Enums -->
     <string name="compute_auto">Automatisch</string>
@@ -59,7 +59,10 @@
     <string name="achievement_back">Zurück</string>
     <string name="achievement_personal_best">Persönlicher Rekord</string>
     <string name="achievement_no_record">Noch kein Rekord</string>
-    <string name="achievement_lines_cleared">%1$d / %2$d Zeilen entfernt</string>
+    <plurals name="achievement_lines_cleared">
+        <item quantity="one">%1$d / %2$d Zeile entfernt</item>
+        <item quantity="other">%1$d / %2$d Zeilen entfernt</item>
+    </plurals>
     <string name="badge_come_and_gone">Da &amp; Weg</string>
     <string name="badge_minimalist">Minimalist</string>
     <string name="badge_around_the_corner">Um die Ecke</string>
@@ -73,7 +76,10 @@
     <string name="notify_minimalist">Minimalist! Nicht mehr als absolut notwendig.</string>
     <string name="notify_come_and_gone">Da und Weg!</string>
     <string name="notify_new_record">Neuer Rekord!</string>
-    <string name="notify_cleared_lines">%1$d Zeilen entfernt!</string>
+    <plurals name="notify_cleared_lines">
+        <item quantity="one">%1$d Zeile entfernt!</item>
+        <item quantity="other">%1$d Zeilen entfernt!</item>
+    </plurals>
 
     <string-array name="congratulations">
         <item>Gut gemacht!</item>

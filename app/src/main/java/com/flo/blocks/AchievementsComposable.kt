@@ -47,27 +47,28 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
     LaunchedEffect(Unit) { achievements = gameViewModel.getAllAchievements() }
 
     Scaffold(
-            topBar = {
-                TopAppBar(
-                        title = { Text(stringResource(R.string.achievements_title)) },
-                        navigationIcon = {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription =
-                                                stringResource(R.string.achievement_back)
-                                )
-                            }
-                        }
-                )
-            }
-    ) { padding ->
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.achievements_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(
+                                R.string.achievement_back
+                            )
+                        )
+                    }
+                })
+        }) { padding ->
         val achievementsMap = achievements.associateBy { it.brick }
 
         LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(CANONICAL_BRICKS) { brick ->
                 val achievement = achievementsMap[brick]
@@ -81,48 +82,57 @@ fun AchievementsPage(gameViewModel: GameViewModel, onBack: () -> Unit) {
 @Composable
 fun AchievementItem(brick: Brick, achievement: BlockAchievement?) {
     Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            tonalElevation = 2.dp
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 2.dp
     ) {
         BoxWithConstraints {
             val isNarrow = maxWidth < 340.dp
             Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 16.dp else 24.dp)
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isNarrow) 16.dp else 24.dp)
             ) {
-                Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center
+                ) {
                     // Using a default color for achievements display
-                    Brick(ColoredBrick(brick, com.flo.blocks.game.BlockColor.BLUE), 10.dp)
+                    Brick(
+                        ColoredBrick(
+                            brick, com.flo.blocks.game.BlockColor.BLUE
+                        ), 10.dp
+                    )
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     val maxLines = achievement?.maxLinesCleared ?: 0
                     Text(
-                            text =
-                                    if (maxLines > 0)
-                                            stringResource(R.string.achievement_personal_best)
-                                    else stringResource(R.string.achievement_no_record),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.secondary
+                        text = if (maxLines > 0) stringResource(
+                            R.string.achievement_personal_best
+                        )
+                        else stringResource(
+                            R.string.achievement_no_record
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                     Text(
-                            text =
-                                    stringResource(
-                                            R.string.achievement_lines_cleared,
-                                            maxLines,
-                                            brick.width + brick.height
-                                    ),
-                            style = MaterialTheme.typography.headlineSmall,
-                            color =
-                                    if (maxLines > 0) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        text = androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.achievement_lines_cleared,
+                            maxLines,
+                            maxLines,
+                            brick.width + brick.height
+                        ),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = if (maxLines > 0) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
 
                     if (isNarrow && achievement != null) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        AchievementBadges(achievement, Modifier.fillMaxWidth())
+                        AchievementBadges(
+                            achievement, Modifier.fillMaxWidth()
+                        )
                     }
                 }
 
@@ -138,82 +148,75 @@ fun AchievementItem(brick: Brick, achievement: BlockAchievement?) {
 @Composable
 private fun AchievementBadges(achievement: BlockAchievement, modifier: Modifier = Modifier) {
     androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = modifier
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
     ) {
-        if (achievement.comeAndGone)
-                Badge(
-                        stringResource(R.string.badge_come_and_gone),
-                        MaterialTheme.colorScheme.tertiaryContainer,
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                )
-        if (achievement.minimalist)
-                Badge(
-                        stringResource(R.string.badge_minimalist),
-                        MaterialTheme.colorScheme.secondaryContainer,
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                )
+        if (achievement.comeAndGone) Badge(
+            stringResource(R.string.badge_come_and_gone),
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer
+        )
+        if (achievement.minimalist) Badge(
+            stringResource(R.string.badge_minimalist),
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer
+        )
 
         // Corner Achievements
         if (achievement.aroundTheCorner) {
             Badge(
-                    stringResource(R.string.badge_around_the_corner),
-                    MaterialTheme.colorScheme.surfaceVariant,
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                stringResource(R.string.badge_around_the_corner),
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        if (achievement.largeWideCorner)
-                Badge(
-                        stringResource(R.string.badge_large_wide_corner),
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                )
-        if (achievement.hugeCorner)
-                Badge(
-                        stringResource(R.string.badge_huge_corner),
-                        MaterialTheme.colorScheme.errorContainer,
-                        MaterialTheme.colorScheme.onErrorContainer
-                )
-        if (achievement.largeCorner && !achievement.largeWideCorner && !achievement.hugeCorner)
-                Badge(
-                        stringResource(R.string.badge_large_corner),
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                )
+        if (achievement.largeWideCorner) Badge(
+            stringResource(R.string.badge_large_wide_corner),
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        if (achievement.hugeCorner) Badge(
+            stringResource(R.string.badge_huge_corner),
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer
+        )
+        if (achievement.largeCorner && !achievement.largeWideCorner && !achievement.hugeCorner) Badge(
+            stringResource(R.string.badge_large_corner),
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer
+        )
 
-        if (achievement.wideCorner && !achievement.largeWideCorner)
-                Badge(
-                        stringResource(R.string.badge_wide_corner),
-                        MaterialTheme.colorScheme.secondaryContainer,
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                )
-        if (achievement.notEvenAround)
-                Badge(
-                        stringResource(R.string.badge_not_even_around),
-                        MaterialTheme.colorScheme.tertiaryContainer,
-                        MaterialTheme.colorScheme.onTertiaryContainer
-                )
+        if (achievement.wideCorner && !achievement.largeWideCorner) Badge(
+            stringResource(R.string.badge_wide_corner),
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        if (achievement.notEvenAround) Badge(
+            stringResource(R.string.badge_not_even_around),
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer
+        )
     }
 }
 
 @Composable
 private fun Badge(
-        text: String,
-        containerColor: androidx.compose.ui.graphics.Color,
-        contentColor: androidx.compose.ui.graphics.Color
+    text: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
 ) {
     Surface(
-            color = containerColor,
-            contentColor = contentColor,
-            shape = MaterialTheme.shapes.small,
-            modifier = Modifier.padding(bottom = 4.dp) // Gap
+        color = containerColor,
+        contentColor = contentColor,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.padding(bottom = 4.dp) // Gap
     ) {
         Text(
-                text = text,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

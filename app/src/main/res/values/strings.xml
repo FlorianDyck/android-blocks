@@ -39,7 +39,7 @@
     <string name="settings_show_cleared_lines">Show Cleared Lines</string>
     <string name="settings_show_around_the_corner">Show Around the Corner</string>
     <string name="settings_transparency">Transparency</string>
-    <string name="save">Save</string>
+
 
     <!-- Settings Enums -->
     <string name="compute_auto">Auto</string>
@@ -59,7 +59,10 @@
     <string name="achievement_back">Back</string>
     <string name="achievement_personal_best">Personal Best</string>
     <string name="achievement_no_record">No record yet</string>
-    <string name="achievement_lines_cleared">%1$d / %2$d lines cleared</string>
+    <plurals name="achievement_lines_cleared">
+        <item quantity="one">%1$d / %2$d line cleared</item>
+        <item quantity="other">%1$d / %2$d lines cleared</item>
+    </plurals>
     <string name="badge_come_and_gone">Come &amp; Gone</string>
     <string name="badge_minimalist">Minimalist</string>
     <string name="badge_around_the_corner">Around the Corner</string>
@@ -73,7 +76,10 @@
     <string name="notify_minimalist">Minimalist! No more than absolutely necessary.</string>
     <string name="notify_come_and_gone">Come and Gone!</string>
     <string name="notify_new_record">New Record!</string>
-    <string name="notify_cleared_lines">%1$d lines cleared!</string>
+    <plurals name="notify_cleared_lines">
+        <item quantity="one">%1$d line cleared!</item>
+        <item quantity="other">%1$d lines cleared!</item>
+    </plurals>
 
     <string-array name="congratulations">
         <item>Well done!</item>
