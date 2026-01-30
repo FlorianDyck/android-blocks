@@ -30,6 +30,7 @@ interface SettingsRepository {
     val achievementShowAroundTheCornerFlow: Flow<Boolean>
     val achievementAlphaFlow: Flow<Float>
     val showBestEvalFlow: Flow<Boolean>
+    val showCurrentEvalFlow: Flow<Boolean>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
@@ -44,6 +45,7 @@ interface SettingsRepository {
     suspend fun saveAchievementShowAroundTheCorner(show: Boolean)
     suspend fun saveAchievementAlpha(alpha: Float)
     suspend fun saveShowBestEval(show: Boolean)
+    suspend fun saveShowCurrentEval(show: Boolean)
 }
 
 enum class AchievementFilter {
@@ -77,6 +79,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val ACHIEVEMENT_ALPHA =
             androidx.datastore.preferences.core.floatPreferencesKey("achievement_alpha")
         val SHOW_BEST_EVAL = booleanPreferencesKey("show_best_eval")
+        val SHOW_CURRENT_EVAL = booleanPreferencesKey("show_current_eval")
     }
 
     override val computeEnabledFlow: Flow<ComputeEnabled> =
@@ -148,6 +151,10 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override val showBestEvalFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.SHOW_BEST_EVAL] ?: false
+    }
+
+    override val showCurrentEvalFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_CURRENT_EVAL] ?: false
     }
 
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
@@ -223,5 +230,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override suspend fun saveShowBestEval(show: Boolean) {
         context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_BEST_EVAL] = show }
+    }
+
+    override suspend fun saveShowCurrentEval(show: Boolean) {
+        context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_CURRENT_EVAL] = show }
     }
 }

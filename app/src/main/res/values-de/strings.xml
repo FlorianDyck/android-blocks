@@ -5,6 +5,7 @@
     <string name="score">Punkte: %1$d</string>
     <string name="highscore">Rekord: %1$d</string>
     <string name="best_eval">Beste: %1$d</string>
+    <string name="current_eval">Aktuell: %1$d</string>
     <string name="new_highscore">Neuer Rekord!</string>
     <string name="game_over">Spiel Vorbei</string>
     <string name="play_again">Nochmal Spielen</string>
@@ -41,6 +42,7 @@
     <string name="settings_show_around_the_corner">Zeige Um die Ecke</string>
     <string name="settings_transparency">Transparenz</string>
     <string name="settings_show_best_eval">Beste Bewertung anzeigen</string>
+    <string name="settings_show_current_eval">Zeige aktuelle Bewertung</string>
 
 
     <!-- Settings Enums -->

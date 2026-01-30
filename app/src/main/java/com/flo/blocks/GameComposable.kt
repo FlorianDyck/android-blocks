@@ -170,6 +170,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
     val bestEval by gameViewModel.bestEval.collectAsState()
+    val currentEval by gameViewModel.currentEval.collectAsState()
 
     var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
     val highscore by gameViewModel.highscore.collectAsState()
@@ -366,6 +367,14 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         bestEval?.let {
                             Text(
                                     text = stringResource(R.string.best_eval, it.toInt()),
+                                    style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                    if (gameViewModel.showCurrentEval) {
+                        currentEval?.let {
+                            Text(
+                                    text = stringResource(R.string.current_eval, it.toInt()),
                                     style = MaterialTheme.typography.titleMedium
                             )
                         }

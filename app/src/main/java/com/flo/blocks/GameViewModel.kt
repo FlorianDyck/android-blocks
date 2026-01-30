@@ -91,6 +91,11 @@ class GameViewModel(
                 startComputation(game.value.bricks.filterNotNull().map { it.brick })
             }
         }
+    var showCurrentEval = false
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveShowCurrentEval(value) }
+        }
     val achievementAlpha = MutableStateFlow(0.9f)
 
     fun setAchievementAlpha(alpha: Float) {
@@ -108,6 +113,7 @@ class GameViewModel(
                 ), 0
             )
             game.value = latestState
+            currentEval.value = latestState.board.board().evaluate()
             gameStateIndex = index
 
             val fullHistory = gameRepository.getHistory()
@@ -126,6 +132,7 @@ class GameViewModel(
             achievementShowAroundTheCorner =
                 settingsRepository.achievementShowAroundTheCornerFlow.first()
             showBestEval = settingsRepository.showBestEvalFlow.first()
+            showCurrentEval = settingsRepository.showCurrentEvalFlow.first()
             achievementAlpha.value = settingsRepository.achievementAlphaFlow.first()
 
             viewModelScope.launch {
@@ -161,6 +168,9 @@ class GameViewModel(
             }
             viewModelScope.launch {
                 settingsRepository.showBestEvalFlow.collect { showBestEval = it }
+            }
+            viewModelScope.launch {
+                settingsRepository.showCurrentEvalFlow.collect { showCurrentEval = it }
             }
         }
     }
@@ -218,6 +228,7 @@ class GameViewModel(
         history.push(oldState)
         lastGameState.value = oldState
         game.value = newState
+        currentEval.value = newState.board.board().evaluate()
         gameStateIndex++
 
         viewModelScope.launch { gameRepository.saveGameState(newState, gameStateIndex) }
@@ -365,6 +376,7 @@ class GameViewModel(
         history.clear()
         lastGameState.value = null
         game.value = newState
+        currentEval.value = newState.board.board().evaluate()
         gameStateIndex = 0 // Reset index for new game
         viewModelScope.launch {
             gameRepository.newGame()
@@ -390,6 +402,7 @@ class GameViewModel(
         if (!canUndo()) return false
         stopComputation()
         game.value = history.pop()
+        currentEval.value = game.value.board.board().evaluate()
         lastGameState.value = history.lastOrNull()
         gameStateIndex--
 
@@ -421,6 +434,7 @@ class GameViewModel(
     private var moves: List<OffsetBrick>? = null
     private var movesScore = Float.NEGATIVE_INFINITY
     val bestEval: MutableStateFlow<Float?> = MutableStateFlow(null)
+    val currentEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     val nextMove: MutableStateFlow<OffsetBrick?> = MutableStateFlow(null)
     val hintRequested = MutableStateFlow(false)
 
