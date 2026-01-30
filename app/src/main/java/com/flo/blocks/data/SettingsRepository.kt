@@ -31,6 +31,8 @@ interface SettingsRepository {
     val achievementAlphaFlow: Flow<Float>
     val showBestEvalFlow: Flow<Boolean>
     val showCurrentEvalFlow: Flow<Boolean>
+    val showGreedyGapInfoFlow: Flow<Boolean>
+    val congratulateBestMoveFlow: Flow<Boolean>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
@@ -46,6 +48,8 @@ interface SettingsRepository {
     suspend fun saveAchievementAlpha(alpha: Float)
     suspend fun saveShowBestEval(show: Boolean)
     suspend fun saveShowCurrentEval(show: Boolean)
+    suspend fun saveShowGreedyGapInfo(show: Boolean)
+    suspend fun saveCongratulateBestMove(show: Boolean)
 }
 
 enum class AchievementFilter {
@@ -80,6 +84,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             androidx.datastore.preferences.core.floatPreferencesKey("achievement_alpha")
         val SHOW_BEST_EVAL = booleanPreferencesKey("show_best_eval")
         val SHOW_CURRENT_EVAL = booleanPreferencesKey("show_current_eval")
+        val SHOW_GREEDY_GAP_INFO = booleanPreferencesKey("show_greedy_gap_info")
+        val CONGRATULATE_BEST_MOVE = booleanPreferencesKey("congratulate_best_move")
     }
 
     override val computeEnabledFlow: Flow<ComputeEnabled> =
@@ -156,6 +162,15 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override val showCurrentEvalFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.SHOW_CURRENT_EVAL] ?: false
     }
+
+    override val showGreedyGapInfoFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_GREEDY_GAP_INFO] ?: false
+    }
+
+    override val congratulateBestMoveFlow: Flow<Boolean> =
+        context.dataStore.data.map { preferences ->
+            preferences[PreferencesKeys.CONGRATULATE_BEST_MOVE] ?: false
+        }
 
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
         context.dataStore.edit { settings ->
@@ -234,5 +249,15 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override suspend fun saveShowCurrentEval(show: Boolean) {
         context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_CURRENT_EVAL] = show }
+    }
+
+    override suspend fun saveShowGreedyGapInfo(show: Boolean) {
+        context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_GREEDY_GAP_INFO] = show }
+    }
+
+    override suspend fun saveCongratulateBestMove(show: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[PreferencesKeys.CONGRATULATE_BEST_MOVE] = show
+        }
     }
 }

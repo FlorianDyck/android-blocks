@@ -170,6 +170,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
     val bestEval by gameViewModel.bestEval.collectAsState()
+    val greedyGap by gameViewModel.greedyGap.collectAsState()
     val currentEval by gameViewModel.currentEval.collectAsState()
 
     var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
@@ -379,6 +380,24 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                             )
                         }
                     }
+                    if (gameViewModel.showGreedyGapInfo) {
+                        greedyGap?.let { gap ->
+                            bestEval?.let { best ->
+                                if (gap > 5f) { // Significant gap
+                                    Text(
+                                            text =
+                                                    stringResource(
+                                                            R.string.greedy_gap_info,
+                                                            (best - gap).coerceAtLeast(0f),
+                                                            best
+                                                    ),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
                 if (computationProgress < 1) {
                     LinearProgressIndicator(
@@ -490,8 +509,11 @@ fun AchievementNotification(
         modifier: Modifier = Modifier
 ) {
     val congratulations = stringArrayResource(R.array.congratulations)
-
     val parts = mutableListOf<String>()
+
+    if (achievement.isBestMove) {
+        parts.add(stringResource(R.string.congrats_best_move))
+    }
     if (achievement.isMinimalist) parts.add(stringResource(R.string.notify_minimalist))
     else if (achievement.blockRemoved) parts.add(stringResource(R.string.notify_come_and_gone))
 

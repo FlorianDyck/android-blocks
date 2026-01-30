@@ -57,6 +57,8 @@ class GameViewModelTest {
                 whenever(settingsRepository.achievementAlphaFlow).thenReturn(flowOf(0.9f))
                 whenever(settingsRepository.showBestEvalFlow).thenReturn(flowOf(false))
                 whenever(settingsRepository.showCurrentEvalFlow).thenReturn(flowOf(false))
+                whenever(settingsRepository.showGreedyGapInfoFlow).thenReturn(flowOf(false))
+                whenever(settingsRepository.congratulateBestMoveFlow).thenReturn(flowOf(false))
         }
 
         class FakeGameRepository : GameRepository(mock(), mock()) {

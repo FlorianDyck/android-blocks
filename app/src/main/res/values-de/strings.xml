@@ -43,6 +43,10 @@
     <string name="settings_transparency">Transparenz</string>
     <string name="settings_show_best_eval">Beste Bewertung anzeigen</string>
     <string name="settings_show_current_eval">Zeige aktuelle Bewertung</string>
+    <string name="settings_show_greedy_gap_info">Lücke zum besten Zug erklären (gierig vs. best)</string>
+    <string name="settings_congratulate_best_move">Zu perfekten Zügen gratulieren</string>
+    <string name="greedy_gap_info">Gierig: %1$.1f (Best: %2$.1f)</string>
+    <string name="congrats_best_move">Bester Zug!</string>
 
 
     <!-- Settings Enums -->

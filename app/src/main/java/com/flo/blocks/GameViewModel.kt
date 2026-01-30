@@ -97,6 +97,22 @@ class GameViewModel(
             field = value
             viewModelScope.launch { settingsRepository.saveShowCurrentEval(value) }
         }
+    var showGreedyGapInfo = false
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveShowGreedyGapInfo(value) }
+            if (value) {
+                startComputation(game.value.bricks.filterNotNull().map { it.brick })
+            }
+        }
+    var congratulateBestMove = false
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveCongratulateBestMove(value) }
+            if (value) {
+                startComputation(game.value.bricks.filterNotNull().map { it.brick })
+            }
+        }
     val achievementAlpha = MutableStateFlow(0.9f)
 
     fun setAchievementAlpha(alpha: Float) {
@@ -135,6 +151,8 @@ class GameViewModel(
                 settingsRepository.achievementShowAroundTheCornerFlow.first()
             showBestEval = settingsRepository.showBestEvalFlow.first()
             showCurrentEval = settingsRepository.showCurrentEvalFlow.first()
+            showGreedyGapInfo = settingsRepository.showGreedyGapInfoFlow.first()
+            congratulateBestMove = settingsRepository.congratulateBestMoveFlow.first()
             achievementAlpha.value = settingsRepository.achievementAlphaFlow.first()
 
             viewModelScope.launch {
@@ -174,6 +192,12 @@ class GameViewModel(
             viewModelScope.launch {
                 settingsRepository.showCurrentEvalFlow.collect { showCurrentEval = it }
             }
+            viewModelScope.launch {
+                settingsRepository.showGreedyGapInfoFlow.collect { showGreedyGapInfo = it }
+            }
+            viewModelScope.launch {
+                settingsRepository.congratulateBestMoveFlow.collect { congratulateBestMove = it }
+            }
         }
     }
 
@@ -207,7 +231,8 @@ class GameViewModel(
         val hugeCorner: Boolean,
         val wideCorner: Boolean,
         val notEvenAround: Boolean,
-        val largeWideCorner: Boolean
+        val largeWideCorner: Boolean,
+        val isBestMove: Boolean = false
     )
 
     val showUndo = canUndo.combine(showUndoIfEnabled) { a, b -> a && b }
@@ -236,7 +261,7 @@ class GameViewModel(
         viewModelScope.launch { gameRepository.saveGameState(newState, gameStateIndex) }
 
         hintRequested.value = false
-        if (computeEnabled == ComputeEnabled.Auto || showBestEval) {
+        if (computeEnabled == ComputeEnabled.Auto || showBestEval || showGreedyGapInfo || congratulateBestMove) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
@@ -254,6 +279,7 @@ class GameViewModel(
         val coloredBrick = game.value.bricks[index] ?: return 0
         val brick = coloredBrick.brick
         val oldScore = game.value.score
+        val oldBestEval = bestEval.value // capture best eval before move
 
         val (nextState, blockRemoved, cellsCleared, clearedRowIndices, clearedColIndices) = game.value.place(
             index, position
@@ -262,19 +288,18 @@ class GameViewModel(
 
         val cleared = game.value.score - oldScore
 
-        if (cleared > 0 || blockRemoved) {
-            viewModelScope.launch {
-                computeAchievements(
-                    brick,
-                    coloredBrick,
-                    cleared,
-                    blockRemoved,
-                    cellsCleared,
-                    clearedRowIndices,
-                    clearedColIndices,
-                    position
-                )
-            }
+        viewModelScope.launch {
+            computeAchievements(
+                brick,
+                coloredBrick,
+                cleared,
+                blockRemoved,
+                cellsCleared,
+                clearedRowIndices,
+                clearedColIndices,
+                position,
+                oldBestEval
+            )
         }
         return cleared
     }
@@ -287,7 +312,8 @@ class GameViewModel(
         cellsCleared: Int,
         clearedRowIndices: List<Int>,
         clearedColIndices: List<Int>,
-        position: IntOffset
+        position: IntOffset,
+        oldBestEval: Float?
     ) {
         val currentRecord = gameRepository.getBlockAchievement(brick)?.maxLinesCleared ?: 0
         val isNewRecord = cleared > currentRecord
@@ -345,25 +371,38 @@ class GameViewModel(
         )
         gameRepository.updateAchievement(newAchievementData)
 
-        if ((blockRemoved && achievementShowComeAndGone.shouldShow(isThin)) or (isNewRecord && achievementShowNewRecord) or (isMinimalist && achievementShowMinimalist.shouldShow(
-                isThin
-            )) or (cleared > 1 && achievementShowClearedLines) or (isAroundTheCorner && achievementShowAroundTheCorner)
-        ) {
-            _achievementEvents.emit(
-                Achievement(
-                    coloredBrick,
-                    cleared,
-                    isNewRecord,
-                    blockRemoved,
-                    isMinimalist,
-                    isAroundTheCorner,
-                    isLargeCorner,
-                    isHugeCorner,
-                    isWideCorner,
-                    isNotEvenAround,
-                    isLargeWideCorner
+        viewModelScope.launch {
+            val evalToCheck = if (game.value.bricks.all { it == null } || game.value.bricks.all { it != null }) {
+                currentEval.value
+            } else {
+                job?.join()
+                bestEval.value
+            }
+
+            val isBestMove =
+                oldBestEval != null && evalToCheck != null && evalToCheck >= oldBestEval - 0.001f
+
+            if ((blockRemoved && achievementShowComeAndGone.shouldShow(isThin)) or (isNewRecord && achievementShowNewRecord) or (isMinimalist && achievementShowMinimalist.shouldShow(
+                    isThin
+                )) or (cleared > 1 && achievementShowClearedLines) or (isAroundTheCorner && achievementShowAroundTheCorner) or (congratulateBestMove && isBestMove)
+            ) {
+                _achievementEvents.emit(
+                    Achievement(
+                        coloredBrick,
+                        cleared,
+                        isNewRecord,
+                        blockRemoved,
+                        isMinimalist,
+                        isAroundTheCorner,
+                        isLargeCorner,
+                        isHugeCorner,
+                        isWideCorner,
+                        isNotEvenAround,
+                        isLargeWideCorner,
+                        isBestMove
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -461,6 +500,100 @@ class GameViewModel(
         return result
     }
 
+    private fun findBestGreedySequenceBit(
+        initialBoard: BitContext.BitBoard, bricks: List<BitContext.BitBrick>
+    ): MoveSequence? {
+        var overallBest: MoveSequence? = null
+        for (perm in bricks.permutations()) {
+            var currentBoard = initialBoard
+            val moves = mutableListOf<BitContext.BitBoard>()
+            val evaluations = mutableListOf<Float>()
+            var isValid = true
+            for (brick in perm) {
+                var bestMove: BitContext.BitBoard? = null
+                var bestEval = Float.NEGATIVE_INFINITY
+                for (offsetBrick in brick.offsetsWithin()) {
+                    if (currentBoard.canPlace(offsetBrick)) {
+                        val (nextBoard, _) = currentBoard.place(offsetBrick)
+                        val eval = nextBoard.evaluate()
+                        if (eval > bestEval) {
+                            bestEval = eval
+                            bestMove = offsetBrick
+                        }
+                    }
+                }
+                if (bestMove != null) {
+                    moves.add(bestMove)
+                    val (nextBoard, _) = currentBoard.place(bestMove)
+                    currentBoard = nextBoard
+                    evaluations.add(bestEval)
+                } else {
+                    isValid = false
+                    break
+                }
+            }
+            if (isValid) {
+                val finalEval = evaluations.last()
+                val maxIntermediate = evaluations.maxOrNull() ?: Float.NEGATIVE_INFINITY
+                val sumEval = evaluations.sum()
+                val seq = MoveSequence(
+                    moves.map { it.toOffsetBrick() },
+                    evaluations,
+                    finalEval,
+                    maxIntermediate,
+                    sumEval
+                )
+                if (overallBest == null || seq > overallBest) {
+                    overallBest = seq
+                }
+            }
+        }
+        return overallBest
+    }
+
+    private fun findBestGreedySequence(initialBoard: Board, bricks: List<Brick>): MoveSequence? {
+        var overallBest: MoveSequence? = null
+        for (perm in bricks.permutations()) {
+            var currentBoard = initialBoard
+            val moves = mutableListOf<OffsetBrick>()
+            val evaluations = mutableListOf<Float>()
+            var isValid = true
+            for (brick in perm) {
+                var bestMove: OffsetBrick? = null
+                var bestEval = Float.NEGATIVE_INFINITY
+                for (offsetBrick in brick.offsetsWithin(initialBoard.width, initialBoard.height)) {
+                    if (currentBoard.canPlace(offsetBrick)) {
+                        val (nextBoard, _) = currentBoard.place(offsetBrick)
+                        val eval = nextBoard.evaluate()
+                        if (eval > bestEval) {
+                            bestEval = eval
+                            bestMove = offsetBrick
+                        }
+                    }
+                }
+                if (bestMove != null) {
+                    moves.add(bestMove)
+                    val (nextBoard, _) = currentBoard.place(bestMove)
+                    currentBoard = nextBoard
+                    evaluations.add(bestEval)
+                } else {
+                    isValid = false
+                    break
+                }
+            }
+            if (isValid) {
+                val finalEval = evaluations.last()
+                val maxIntermediate = evaluations.maxOrNull() ?: Float.NEGATIVE_INFINITY
+                val sumEval = evaluations.sum()
+                val seq = MoveSequence(moves, evaluations, finalEval, maxIntermediate, sumEval)
+                if (overallBest == null || seq > overallBest) {
+                    overallBest = seq
+                }
+            }
+        }
+        return overallBest
+    }
+
     private fun findBestPermutationBit(
         initialBoard: BitContext.BitBoard, moveBoards: List<BitContext.BitBoard>
     ): MoveSequence? {
@@ -530,6 +663,7 @@ class GameViewModel(
     private var moves: List<OffsetBrick>? = null
     private var movesScore: MoveSequence? = null
     val bestEval: MutableStateFlow<Float?> = MutableStateFlow(null)
+    val greedyGap: MutableStateFlow<Float?> = MutableStateFlow(null)
     val currentEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     private var minEval = 0f
     private var maxEval = 1f
@@ -629,6 +763,15 @@ class GameViewModel(
                             bestEval.value = bestSeq.finalEval.normalize()
                             if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
                                 nextMove.value = bestSeq.moves[0]
+                            }
+                            if (showGreedyGapInfo) {
+                                // Need to recalculate greedy gap since movesScore updated
+                                val bitBricks = remainingBricks.let {
+                                    if (it.isEmpty()) initialBoard.let { /* this is tricky as we don't have bitBricks here easily */
+                                    }
+                                }
+                                // Actually, it's better to calculate greedy once and update the gap
+                                // whenever best movesScore updates.
                             }
                         }
                     }
@@ -734,6 +877,7 @@ class GameViewModel(
                 moves = null
                 nextMove.value = null
                 bestEval.value = null
+                greedyGap.value = null
                 movesScore = null
                 job?.join()
                 job = viewModelScope.launch {
@@ -744,20 +888,47 @@ class GameViewModel(
                                     game.value.board.width, game.value.board.height
                                 )
                             )
+                            val bitBricks = bricks.map { context.BitBrick(it) }
                             val initialBoard = context.BitBoard(computationStartState.first)
-                            computeSyncBit(
-                                initialBoard,
-                                initialBoard,
-                                bricks.map { context.BitBrick(it) },
-                                listOf()
-                            )
+
+                            var greedyScore: Float? = null
+                            if (showGreedyGapInfo) {
+                                val greedySeq = findBestGreedySequenceBit(initialBoard, bitBricks)
+                                greedyScore = greedySeq?.finalEval
+                            }
+
+                            computeSyncBit(initialBoard, initialBoard, bitBricks, listOf())
+
+                            if (showGreedyGapInfo && greedyScore != null) {
+                                mutex.withLock {
+                                    greedyGap.value = movesScore?.let { best ->
+                                        best.finalEval.normalize() - greedyScore.normalize()
+                                    }
+                                }
+                            }
                         } else {
+                            var greedyScore: Float? = null
+                            if (showGreedyGapInfo) {
+                                val greedySeq = findBestGreedySequence(
+                                    computationStartState.first, bricks
+                                )
+                                greedyScore = greedySeq?.finalEval
+                            }
+
                             computeParallel(
                                 computationStartState.first,
                                 computationStartState.first,
                                 bricks,
                                 listOf()
                             )
+
+                            if (showGreedyGapInfo && greedyScore != null) {
+                                mutex.withLock {
+                                    greedyGap.value = movesScore?.let { best ->
+                                        best.finalEval.normalize() - greedyScore.normalize()
+                                    }
+                                }
+                            }
                         }
                         Log.i("compute", "finished")
                     }

@@ -43,6 +43,10 @@
     <string name="settings_transparency">Transparency</string>
     <string name="settings_show_best_eval">Show Best Evaluation</string>
     <string name="settings_show_current_eval">Show Current Evaluation</string>
+    <string name="settings_show_greedy_gap_info">Explain Best Move Gap (Greedy vs Best)</string>
+    <string name="settings_congratulate_best_move">Congratulate on Perfect Moves</string>
+    <string name="greedy_gap_info">Greedy: %1$.1f (Best: %2$.1f)</string>
+    <string name="congrats_best_move">Best Move!</string>
 
 
     <!-- Settings Enums -->

@@ -294,6 +294,10 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
             }
             var showBestEval by remember { mutableStateOf(computeViewModel.showBestEval) }
             var showCurrentEval by remember { mutableStateOf(computeViewModel.showCurrentEval) }
+            var showGreedyGapInfo by remember { mutableStateOf(computeViewModel.showGreedyGapInfo) }
+            var congratulateBestMove by remember {
+                mutableStateOf(computeViewModel.congratulateBestMove)
+            }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Scrollable container for settings
@@ -365,6 +369,20 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                     ) {
                         showCurrentEval = it
                         computeViewModel.showCurrentEval = it
+                    }
+                    SelectOption(
+                            stringResource(R.string.settings_show_greedy_gap_info),
+                            showGreedyGapInfo
+                    ) {
+                        showGreedyGapInfo = it
+                        computeViewModel.showGreedyGapInfo = it
+                    }
+                    SelectOption(
+                            stringResource(R.string.settings_congratulate_best_move),
+                            congratulateBestMove
+                    ) {
+                        congratulateBestMove = it
+                        computeViewModel.congratulateBestMove = it
                     }
                     Text(
                             stringResource(R.string.settings_achievements),
