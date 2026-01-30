@@ -83,6 +83,14 @@ class GameViewModel(
             field = value
             viewModelScope.launch { settingsRepository.saveAchievementShowAroundTheCorner(value) }
         }
+    var showBestEval = false
+        set(value) {
+            field = value
+            viewModelScope.launch { settingsRepository.saveShowBestEval(value) }
+            if (value) {
+                startComputation(game.value.bricks.filterNotNull().map { it.brick })
+            }
+        }
     val achievementAlpha = MutableStateFlow(0.9f)
 
     fun setAchievementAlpha(alpha: Float) {
@@ -117,6 +125,7 @@ class GameViewModel(
             achievementShowClearedLines = settingsRepository.achievementShowClearedLinesFlow.first()
             achievementShowAroundTheCorner =
                 settingsRepository.achievementShowAroundTheCornerFlow.first()
+            showBestEval = settingsRepository.showBestEvalFlow.first()
             achievementAlpha.value = settingsRepository.achievementAlphaFlow.first()
 
             viewModelScope.launch {
@@ -149,6 +158,9 @@ class GameViewModel(
             }
             viewModelScope.launch {
                 settingsRepository.achievementAlphaFlow.collect { achievementAlpha.value = it }
+            }
+            viewModelScope.launch {
+                settingsRepository.showBestEvalFlow.collect { showBestEval = it }
             }
         }
     }
@@ -210,7 +222,8 @@ class GameViewModel(
 
         viewModelScope.launch { gameRepository.saveGameState(newState, gameStateIndex) }
 
-        if (computeEnabled == ComputeEnabled.Auto) {
+        hintRequested.value = false
+        if (computeEnabled == ComputeEnabled.Auto || showBestEval) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
@@ -358,7 +371,8 @@ class GameViewModel(
             gameRepository.saveGameState(newState, gameStateIndex)
         }
 
-        if (computeEnabled == ComputeEnabled.Auto) {
+        hintRequested.value = false
+        if (computeEnabled == ComputeEnabled.Auto || showBestEval) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         canUndo.value = canUndo()
@@ -391,7 +405,8 @@ class GameViewModel(
 
         val canStillUndo = canUndo()
         canUndo.value = canStillUndo
-        if (computeEnabled == ComputeEnabled.Auto) {
+        hintRequested.value = false
+        if (computeEnabled == ComputeEnabled.Auto || showBestEval) {
             startComputation(game.value.bricks.filterNotNull().map { it.brick })
         }
         return canStillUndo
@@ -405,7 +420,18 @@ class GameViewModel(
     private val mutex = Mutex()
     private var moves: List<OffsetBrick>? = null
     private var movesScore = Float.NEGATIVE_INFINITY
+    val bestEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     val nextMove: MutableStateFlow<OffsetBrick?> = MutableStateFlow(null)
+    val hintRequested = MutableStateFlow(false)
+
+    fun requestHint() {
+        hintRequested.value = true
+        moves?.let {
+            if (it.isNotEmpty()) {
+                nextMove.value = it[0]
+            }
+        }
+    }
 
     //    val currentMove = MutableStateFlow("")
     val progress = MutableStateFlow(1f)
@@ -470,7 +496,10 @@ class GameViewModel(
                     if (myScore <= movesScore) return
                     moves = myMoves
                     movesScore = myScore
-                    nextMove.value = myMoves[0]
+                    bestEval.value = myScore
+                    if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                        nextMove.value = myMoves[0]
+                    }
                 }
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
@@ -541,7 +570,10 @@ class GameViewModel(
                     if (myScore <= movesScore) return
                     moves = myMoves.map { it.toOffsetBrick() }
                     movesScore = myScore
-                    nextMove.value = myMoves[0].toOffsetBrick()
+                    bestEval.value = myScore
+                    if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                        nextMove.value = myMoves[0].toOffsetBrick()
+                    }
                 }
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
@@ -561,6 +593,7 @@ class GameViewModel(
                 currentState = computationStartState
                 moves = null
                 nextMove.value = null
+                bestEval.value = null
                 movesScore = Float.NEGATIVE_INFINITY
                 job?.join()
                 job = viewModelScope.launch {

@@ -4,6 +4,7 @@
     <!-- Game -->
     <string name="score">Score: %1$d</string>
     <string name="highscore">Highscore: %1$d</string>
+    <string name="best_eval">Best: %1$d</string>
     <string name="new_highscore">New Highscore!</string>
     <string name="game_over">Game Over</string>
     <string name="play_again">Play Again</string>
@@ -39,6 +40,7 @@
     <string name="settings_show_cleared_lines">Show Cleared Lines</string>
     <string name="settings_show_around_the_corner">Show Around the Corner</string>
     <string name="settings_transparency">Transparency</string>
+    <string name="settings_show_best_eval">Show Best Evaluation</string>
 
 
     <!-- Settings Enums -->

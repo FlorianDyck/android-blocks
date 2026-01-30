@@ -292,6 +292,7 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
             var achievementAlpha by remember {
                 mutableFloatStateOf(computeViewModel.achievementAlpha.value)
             }
+            var showBestEval by remember { mutableStateOf(computeViewModel.showBestEval) }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Scrollable container for settings
@@ -352,6 +353,10 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                     ) {
                         showNewGameButton = it
                         computeViewModel.showNewGameButton.value = it
+                    }
+                    SelectOption(stringResource(R.string.settings_show_best_eval), showBestEval) {
+                        showBestEval = it
+                        computeViewModel.showBestEval = it
                     }
 
                     Text(

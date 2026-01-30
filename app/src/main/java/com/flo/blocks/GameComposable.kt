@@ -169,6 +169,8 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
 
+    val bestEval by gameViewModel.bestEval.collectAsState()
+
     var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
     val highscore by gameViewModel.highscore.collectAsState()
 
@@ -329,11 +331,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                     val showCompute by gameViewModel.showCompute.collectAsState()
                     AnimatedVisibility(visible = showCompute && suggestion == null) {
                         FloatingActionButton(
-                                onClick = {
-                                    gameViewModel.startComputation(
-                                            game.bricks.filterNotNull().map { it.brick }
-                                    )
-                                },
+                                onClick = { gameViewModel.requestHint() },
                         ) { Icon(Icons.Filled.Search, stringResource(R.string.hint)) }
                     }
                     val showNewGameButton by gameViewModel.showNewGameButton.collectAsState()
@@ -364,6 +362,14 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                             text = stringResource(R.string.highscore, highscore),
                             style = MaterialTheme.typography.titleMedium
                     )
+                    if (gameViewModel.showBestEval) {
+                        bestEval?.let {
+                            Text(
+                                    text = stringResource(R.string.best_eval, it.toInt()),
+                                    style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
                 }
                 if (computationProgress < 1) {
                     LinearProgressIndicator(

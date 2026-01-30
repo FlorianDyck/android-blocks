@@ -29,6 +29,7 @@ interface SettingsRepository {
     val achievementShowClearedLinesFlow: Flow<Boolean>
     val achievementShowAroundTheCornerFlow: Flow<Boolean>
     val achievementAlphaFlow: Flow<Float>
+    val showBestEvalFlow: Flow<Boolean>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
@@ -42,6 +43,7 @@ interface SettingsRepository {
     suspend fun saveAchievementShowClearedLines(show: Boolean)
     suspend fun saveAchievementShowAroundTheCorner(show: Boolean)
     suspend fun saveAchievementAlpha(alpha: Float)
+    suspend fun saveShowBestEval(show: Boolean)
 }
 
 enum class AchievementFilter {
@@ -74,6 +76,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             booleanPreferencesKey("achievement_show_around_the_corner")
         val ACHIEVEMENT_ALPHA =
             androidx.datastore.preferences.core.floatPreferencesKey("achievement_alpha")
+        val SHOW_BEST_EVAL = booleanPreferencesKey("show_best_eval")
     }
 
     override val computeEnabledFlow: Flow<ComputeEnabled> =
@@ -141,6 +144,10 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override val achievementAlphaFlow: Flow<Float> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.ACHIEVEMENT_ALPHA] ?: 0.8f
+    }
+
+    override val showBestEvalFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.SHOW_BEST_EVAL] ?: false
     }
 
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
@@ -212,5 +219,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     override suspend fun saveAchievementAlpha(alpha: Float) {
         context.dataStore.edit { settings -> settings[PreferencesKeys.ACHIEVEMENT_ALPHA] = alpha }
+    }
+
+    override suspend fun saveShowBestEval(show: Boolean) {
+        context.dataStore.edit { settings -> settings[PreferencesKeys.SHOW_BEST_EVAL] = show }
     }
 }
