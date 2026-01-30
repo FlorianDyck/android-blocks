@@ -432,10 +432,103 @@ class GameViewModel(
         viewModelScope.launch { settingsRepository.saveBoardSize(width, height) }
     }
 
+    private data class MoveSequence(
+        val moves: List<OffsetBrick>,
+        val evaluations: List<Float>,
+        val finalEval: Float,
+        val maxIntermediateEval: Float,
+        val sumEval: Float
+    ) : Comparable<MoveSequence> {
+        override fun compareTo(other: MoveSequence): Int {
+            if (this.finalEval != other.finalEval) return this.finalEval.compareTo(other.finalEval)
+            if (this.maxIntermediateEval != other.maxIntermediateEval) return this.maxIntermediateEval.compareTo(
+                other.maxIntermediateEval
+            )
+            return this.sumEval.compareTo(other.sumEval)
+        }
+    }
+
+    private fun <T> List<T>.permutations(): List<List<T>> {
+        if (isEmpty()) return listOf(emptyList())
+        val result = mutableListOf<List<T>>()
+        for (i in indices) {
+            val element = get(i)
+            val remaining = subList(0, i) + subList(i + 1, size)
+            for (p in remaining.permutations()) {
+                result.add(listOf(element) + p)
+            }
+        }
+        return result
+    }
+
+    private fun findBestPermutationBit(
+        initialBoard: BitContext.BitBoard, moveBoards: List<BitContext.BitBoard>
+    ): MoveSequence? {
+        var best: MoveSequence? = null
+        for (perm in moveBoards.permutations()) {
+            var currentBoard = initialBoard
+            val intermediateEvals = mutableListOf<Float>()
+            var isValid = true
+            for (move in perm) {
+                if (!currentBoard.canPlace(move)) {
+                    isValid = false
+                    break
+                }
+                val (nextBoard, _) = currentBoard.place(move)
+                currentBoard = nextBoard
+                intermediateEvals.add(currentBoard.evaluate())
+            }
+            if (isValid) {
+                val finalEval = intermediateEvals.last()
+                val maxIntermediate = intermediateEvals.maxOrNull() ?: Float.NEGATIVE_INFINITY
+                val sumEval = intermediateEvals.sum()
+                val seq = MoveSequence(
+                    perm.map { it.toOffsetBrick() },
+                    intermediateEvals,
+                    finalEval,
+                    maxIntermediate,
+                    sumEval
+                )
+                if (best == null || seq > best) {
+                    best = seq
+                }
+            }
+        }
+        return best
+    }
+
+    private fun findBestPermutation(initialBoard: Board, moves: List<OffsetBrick>): MoveSequence? {
+        var best: MoveSequence? = null
+        for (perm in moves.permutations()) {
+            var currentBoard = initialBoard
+            val intermediateEvals = mutableListOf<Float>()
+            var isValid = true
+            for (move in perm) {
+                if (!currentBoard.canPlace(move)) {
+                    isValid = false
+                    break
+                }
+                val (nextBoard, _) = currentBoard.place(move)
+                currentBoard = nextBoard
+                intermediateEvals.add(currentBoard.evaluate())
+            }
+            if (isValid) {
+                val finalEval = intermediateEvals.last()
+                val maxIntermediate = intermediateEvals.maxOrNull() ?: Float.NEGATIVE_INFINITY
+                val sumEval = intermediateEvals.sum()
+                val seq = MoveSequence(perm, intermediateEvals, finalEval, maxIntermediate, sumEval)
+                if (best == null || seq > best) {
+                    best = seq
+                }
+            }
+        }
+        return best
+    }
+
     /** locks: computationStartState, moves, nextMove, movesScore */
     private val mutex = Mutex()
     private var moves: List<OffsetBrick>? = null
-    private var movesScore = Float.NEGATIVE_INFINITY
+    private var movesScore: MoveSequence? = null
     val bestEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     val currentEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     private var minEval = 0f
@@ -476,7 +569,7 @@ class GameViewModel(
      * this for a ~3 times speed increase.
      */
     private suspend fun computeParallel(
-        board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
+        initialBoard: Board, board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
     ) {
         val totalSteps = bricks.sumOf { it.offsetsWithin(board.width, board.height).size }
         var steps = 0
@@ -488,7 +581,9 @@ class GameViewModel(
                         steps += 1
                         progress.value = steps.toFloat() / totalSteps
                         // Log.d("progress", "$i, ${offsetBrick.offset}, ${progress.value}")
-                        computeSync(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                        computeSync(
+                            initialBoard, board, offsetBrick, remainingBricks, previousMoves, i > 0
+                        )
                     }
                 }
             }
@@ -497,17 +592,18 @@ class GameViewModel(
     }
 
     private suspend fun computeSync(
-        board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
+        initialBoard: Board, board: Board, bricks: List<Brick>, previousMoves: List<OffsetBrick>
     ) {
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
             for (offsetBrick in bricks[i].offsetsWithin(board.width, board.height)) {
-                computeSync(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                computeSync(initialBoard, board, offsetBrick, remainingBricks, previousMoves, i > 0)
             }
         }
     }
 
     suspend fun computeSync(
+        initialBoard: Board,
         board: Board,
         offsetBrick: OffsetBrick,
         remainingBricks: List<Brick>,
@@ -522,20 +618,25 @@ class GameViewModel(
         if (remainingBricks.isEmpty()) {
             // all blocks set, evaluate position
             val myScore = newBoard.evaluate()
-            if (myScore > movesScore) {
-                mutex.withLock {
-                    if (myScore <= movesScore) return
-                    moves = myMoves
-                    movesScore = myScore
-                    bestEval.value = myScore.normalize()
-                    if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
-                        nextMove.value = myMoves[0]
+            if (movesScore?.let { myScore > it.finalEval } ?: true) {
+                // all blocks set, test all permutations for best understandability
+                val bestSeq = findBestPermutation(initialBoard, myMoves)
+                if (bestSeq != null) {
+                    mutex.withLock {
+                        if (movesScore == null || bestSeq > movesScore!!) {
+                            moves = bestSeq.moves
+                            movesScore = bestSeq
+                            bestEval.value = bestSeq.finalEval.normalize()
+                            if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                                nextMove.value = bestSeq.moves[0]
+                            }
+                        }
                     }
                 }
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
             // recursively set blocks
-            computeSync(newBoard, remainingBricks, myMoves)
+            computeSync(initialBoard, newBoard, remainingBricks, myMoves)
         }
     }
 
@@ -546,6 +647,7 @@ class GameViewModel(
      * this for a ~3 times speed increase.
      */
     private suspend fun computeParallelBit(
+        initialBoard: BitContext.BitBoard,
         board: BitContext.BitBoard,
         bricks: List<BitContext.BitBrick>,
         previousMoves: List<BitContext.BitBoard>
@@ -560,7 +662,9 @@ class GameViewModel(
                         steps += 1
                         progress.value = steps.toFloat() / totalSteps
                         // Log.d("progress", "$i, ${offsetBrick.offset}, ${progress.value}")
-                        computeSyncBit(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                        computeSyncBit(
+                            initialBoard, board, offsetBrick, remainingBricks, previousMoves, i > 0
+                        )
                     }
                 }
             }
@@ -569,6 +673,7 @@ class GameViewModel(
     }
 
     private suspend fun computeSyncBit(
+        initialBoard: BitContext.BitBoard,
         board: BitContext.BitBoard,
         bricks: List<BitContext.BitBrick>,
         previousMoves: List<BitContext.BitBoard>,
@@ -576,12 +681,15 @@ class GameViewModel(
         for (i in bricks.indices) {
             val remainingBricks = bricks.subList(0, i) + bricks.subList(i + 1, bricks.size)
             for (offsetBrick in bricks[i].offsetsWithin()) {
-                computeSyncBit(board, offsetBrick, remainingBricks, previousMoves, i > 0)
+                computeSyncBit(
+                    initialBoard, board, offsetBrick, remainingBricks, previousMoves, i > 0
+                )
             }
         }
     }
 
     suspend fun computeSyncBit(
+        initialBoard: BitContext.BitBoard,
         board: BitContext.BitBoard,
         offsetBrick: BitContext.BitBoard,
         remainingBricks: List<BitContext.BitBrick>,
@@ -594,22 +702,23 @@ class GameViewModel(
 
         val myMoves = previousMoves + listOf(offsetBrick)
         if (remainingBricks.isEmpty()) {
-            // all blocks set, evaluate position
-            val myScore = newBoard.evaluate()
-            if (myScore > movesScore) {
+            // all blocks set, test all permutations for best understandability
+            val bestSeq = findBestPermutationBit(initialBoard, myMoves)
+            if (bestSeq != null) {
                 mutex.withLock {
-                    if (myScore <= movesScore) return
-                    moves = myMoves.map { it.toOffsetBrick() }
-                    movesScore = myScore
-                    bestEval.value = myScore.normalize()
-                    if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
-                        nextMove.value = myMoves[0].toOffsetBrick()
+                    if (movesScore == null || bestSeq > movesScore!!) {
+                        moves = bestSeq.moves
+                        movesScore = bestSeq
+                        bestEval.value = bestSeq.finalEval.normalize()
+                        if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                            nextMove.value = bestSeq.moves[0]
+                        }
                     }
                 }
             }
         } else if (!(forceClearBeforeLast && cleared == 0 && remainingBricks.size == 1)) {
             // recursively set blocks
-            computeSyncBit(newBoard, remainingBricks, myMoves)
+            computeSyncBit(initialBoard, newBoard, remainingBricks, myMoves)
         }
     }
 
@@ -625,7 +734,7 @@ class GameViewModel(
                 moves = null
                 nextMove.value = null
                 bestEval.value = null
-                movesScore = Float.NEGATIVE_INFINITY
+                movesScore = null
                 job?.join()
                 job = viewModelScope.launch {
                     withContext(Dispatchers.Default) {
@@ -635,13 +744,20 @@ class GameViewModel(
                                     game.value.board.width, game.value.board.height
                                 )
                             )
+                            val initialBoard = context.BitBoard(computationStartState.first)
                             computeSyncBit(
-                                context.BitBoard(computationStartState.first),
+                                initialBoard,
+                                initialBoard,
                                 bricks.map { context.BitBrick(it) },
                                 listOf()
                             )
                         } else {
-                            computeParallel(computationStartState.first, bricks, listOf())
+                            computeParallel(
+                                computationStartState.first,
+                                computationStartState.first,
+                                bricks,
+                                listOf()
+                            )
                         }
                         Log.i("compute", "finished")
                     }
