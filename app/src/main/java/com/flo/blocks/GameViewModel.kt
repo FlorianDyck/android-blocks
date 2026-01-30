@@ -29,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Stack
 import kotlin.math.min
+import kotlin.math.pow
 
 class GameViewModel(
     private val settingsRepository: SettingsRepository, private val gameRepository: GameRepository
@@ -113,7 +114,8 @@ class GameViewModel(
                 ), 0
             )
             game.value = latestState
-            currentEval.value = latestState.board.board().evaluate()
+            updateEvalBaselines(width, height)
+            currentEval.value = latestState.board.board().evaluate().normalize()
             gameStateIndex = index
 
             val fullHistory = gameRepository.getHistory()
@@ -228,7 +230,7 @@ class GameViewModel(
         history.push(oldState)
         lastGameState.value = oldState
         game.value = newState
-        currentEval.value = newState.board.board().evaluate()
+        currentEval.value = newState.board.board().evaluate().normalize()
         gameStateIndex++
 
         viewModelScope.launch { gameRepository.saveGameState(newState, gameStateIndex) }
@@ -376,7 +378,8 @@ class GameViewModel(
         history.clear()
         lastGameState.value = null
         game.value = newState
-        currentEval.value = newState.board.board().evaluate()
+        updateEvalBaselines(width, height)
+        currentEval.value = newState.board.board().evaluate().normalize()
         gameStateIndex = 0 // Reset index for new game
         viewModelScope.launch {
             gameRepository.newGame()
@@ -402,7 +405,7 @@ class GameViewModel(
         if (!canUndo()) return false
         stopComputation()
         game.value = history.pop()
-        currentEval.value = game.value.board.board().evaluate()
+        currentEval.value = game.value.board.board().evaluate().normalize()
         lastGameState.value = history.lastOrNull()
         gameStateIndex--
 
@@ -435,6 +438,20 @@ class GameViewModel(
     private var movesScore = Float.NEGATIVE_INFINITY
     val bestEval: MutableStateFlow<Float?> = MutableStateFlow(null)
     val currentEval: MutableStateFlow<Float?> = MutableStateFlow(null)
+    private var minEval = 0f
+    private var maxEval = 1f
+
+    private fun updateEvalBaselines(width: Int, height: Int) {
+        minEval = Board.calculateMinEval(width, height)
+        maxEval = Board.calculateMaxEval(width, height)
+    }
+
+    private fun Float.normalize(): Float {
+        if (maxEval == minEval) return 0f
+        val ratio = (this - minEval) / (maxEval - minEval)
+        return ratio.coerceIn(0f, 1f).pow(10f) * 100f
+    }
+
     val nextMove: MutableStateFlow<OffsetBrick?> = MutableStateFlow(null)
     val hintRequested = MutableStateFlow(false)
 
@@ -510,7 +527,7 @@ class GameViewModel(
                     if (myScore <= movesScore) return
                     moves = myMoves
                     movesScore = myScore
-                    bestEval.value = myScore
+                    bestEval.value = myScore.normalize()
                     if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
                         nextMove.value = myMoves[0]
                     }
@@ -584,7 +601,7 @@ class GameViewModel(
                     if (myScore <= movesScore) return
                     moves = myMoves.map { it.toOffsetBrick() }
                     movesScore = myScore
-                    bestEval.value = myScore
+                    bestEval.value = myScore.normalize()
                     if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
                         nextMove.value = myMoves[0].toOffsetBrick()
                     }

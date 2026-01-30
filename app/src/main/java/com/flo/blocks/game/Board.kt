@@ -58,20 +58,21 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
     }
 
     fun evaluate(): Float {
-//        val freeBlocks = board.count { !it }
+        // val freeBlocks = board.count { !it }
         val (blockGrades, freedomGrades, _) = grades()
-//        if (score > movesScore) {
-//            Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border: $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
-//        }
+        // if (score > movesScore) {
+        // Log.i("evaluate", "${currentMove.value}: $score: free: $freeBlocks, border:
+        // $borderLength, freedoms: ${freedomGrades.map { "$it" }.reduce {a, b -> "$a$b"}}")
+        // }
         var score = 0
         score += freedomGrades[0] * 3
         score += freedomGrades[1] * 2
         score += freedomGrades[2] * 1
         score += freedomGrades[3] * -2
         score += freedomGrades[4] * -21
-//            score += blockGrades[0] * 0
-//            score += blockGrades[1] * 0
-//            score += blockGrades[2] * 0
+        // score += blockGrades[0] * 0
+        // score += blockGrades[1] * 0
+        // score += blockGrades[2] * 0
         score += blockGrades[3] * -1
         score += blockGrades[4] * -5
         if (canPlace(rect(0, 0, 2, 2))) score += 20
@@ -101,6 +102,19 @@ data class Board(val width: Int, val height: Int, val board: BooleanArray) {
 
         return Pair(result, lines.size + rows.size)
     }
+
+    companion object {
+        fun calculateMinEval(width: Int, height: Int): Float {
+            return Board(
+                width, height, BooleanArray(width * height) { index ->
+                    val x = index % width
+                    val y = index / width
+                    (x + y) % 2 == 0
+                }).evaluate()
+        }
+
+        fun calculateMaxEval(width: Int, height: Int): Float {
+            return Board(width, height, BooleanArray(width * height) { false }).evaluate()
+        }
+    }
 }
-
-
