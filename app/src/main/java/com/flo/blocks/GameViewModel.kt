@@ -872,11 +872,19 @@ class GameViewModel(
     fun startComputation(bricks: List<Brick>) {
 
         val computationStartState = Pair(game.value.board.board(), bricks)
-        if (computationStartState == currentState) return
 
         viewModelScope.launch {
             mutex.withLock {
-                if (computationStartState == currentState) return@launch
+                if (computationStartState == currentState) {
+                    // If we are in Auto mode or a hint was requested, ensure the best move (if
+                    // computed) is shown.
+                    // This handles cases where we switch to Auto mode after computation is already
+                    // done.
+                    if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                        moves?.let { if (it.isNotEmpty()) nextMove.value = it[0] }
+                    }
+                    return@launch
+                }
                 currentState = computationStartState
                 moves = null
                 nextMove.value = null

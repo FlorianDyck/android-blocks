@@ -701,4 +701,45 @@ class GameViewModelTest {
                         // 3. Verify a move is suggested
                         assert(viewModel.nextMove.value != null)
                 }
+
+        @Test
+        fun `switching to auto compute shows cached hint immediately`() =
+                runTest(testDispatcher) {
+                        whenever(settingsRepository.computeEnabledFlow)
+                                .thenReturn(flowOf(ComputeEnabled.Button))
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
+                        advanceUntilIdle()
+
+                        // 1. Setup board
+                        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+                        val brick = com.flo.blocks.game.rect(0, 0, 0, 0)
+                        val coloredBrick =
+                                com.flo.blocks.game.ColoredBrick(
+                                        brick,
+                                        com.flo.blocks.game.BlockColor.RED
+                                )
+                        viewModel.game.value =
+                                com.flo.blocks.game.GameState(
+                                        board,
+                                        arrayOf(coloredBrick, null, null),
+                                        0
+                                )
+
+                        // 2. Request hint manually
+                        viewModel.requestHint()
+                        advanceUntilIdle()
+                        assert(viewModel.nextMove.value != null)
+
+                        // 3. Force clear to simulate "hidden" state before switching to Auto
+                        viewModel.nextMove.value = null
+                        assert(viewModel.nextMove.value == null)
+
+                        // 4. Switch to Auto
+                        viewModel.computeEnabled = ComputeEnabled.Auto
+                        advanceUntilIdle()
+
+                        // 5. Verify hint is restored
+                        assert(viewModel.nextMove.value != null)
+                }
 }
