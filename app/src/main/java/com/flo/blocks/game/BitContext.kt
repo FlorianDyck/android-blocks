@@ -2,7 +2,6 @@ package com.flo.blocks.game
 
 import androidx.compose.ui.unit.IntOffset
 
-
 data class Grades(val free: IntArray, val used: IntArray) {
     override operator fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -26,9 +25,10 @@ data class Grades(val free: IntArray, val used: IntArray) {
 class BitContext(val boardSize: IntOffset) {
     val line: ULong = (0 until boardSize.x).sumOf { 1UL.shl(it) }
     val column: ULong = (0 until boardSize.y).sumOf { 1UL.shl(it * boardSize.x) }
+    val boardMask: ULong = (0 until boardSize.y).sumOf { line shl (it * boardSize.x) }
 
     private fun placeablePositionMask(width: Int, height: Int) =
-        (line shr (width - 1)) * (column shr ((height - 1) * boardSize.x))
+            (line shr (width - 1)) * (column shr ((height - 1) * boardSize.x))
 
     val placeablePositionMask3x3: ULong = placeablePositionMask(3, 3)
     val placeablePositionMask1x5: ULong = placeablePositionMask(1, 5)
@@ -36,17 +36,21 @@ class BitContext(val boardSize: IntOffset) {
     fun IntOffset.shift() = y * boardSize.x + x
 
     inner class BitBoard(private val board: ULong) {
-        constructor(board: Board) : this({
-            var result = 0UL
-            for (y in 0 until boardSize.y) {
-                for (x in 0 until boardSize.x) {
-                    if (board[x, y]) {
-                        result = result or (1UL shl (x + y * boardSize.x))
+        constructor(
+                board: Board
+        ) : this(
+                {
+                    var result = 0UL
+                    for (y in 0 until boardSize.y) {
+                        for (x in 0 until boardSize.x) {
+                            if (board[x, y]) {
+                                result = result or (1UL shl (x + y * boardSize.x))
+                            }
+                        }
                     }
-                }
-            }
-            result
-        }())
+                    result
+                }()
+        )
 
         fun get(position: IntOffset) = (board.shr(position.shift()).and(1UL)) != 0UL
         private fun placeablePositions(brick: BitBrick): ULong {
@@ -107,22 +111,22 @@ class BitContext(val boardSize: IntOffset) {
             val diff0 = b3.inv() and b2.inv() and b1.inv()
 
             return Grades(
-                intArrayOf(
-                    // free
-                    (diff0 and board.inv()).countOneBits(),
-                    (diff1 and board.inv()).countOneBits(),
-                    (diff2 and board.inv()).countOneBits(),
-                    (diff3 and board.inv()).countOneBits(),
-                    (diff4 and board.inv()).countOneBits(),
-                ),
-                intArrayOf(
-                    // used
-                    (diff0 and board).countOneBits(),
-                    (diff1 and board).countOneBits(),
-                    (diff2 and board).countOneBits(),
-                    (diff3 and board).countOneBits(),
-                    (diff4 and board).countOneBits(),
-                )
+                    intArrayOf(
+                            // free
+                            (diff0 and board.inv() and boardMask).countOneBits(),
+                            (diff1 and board.inv() and boardMask).countOneBits(),
+                            (diff2 and board.inv() and boardMask).countOneBits(),
+                            (diff3 and board.inv() and boardMask).countOneBits(),
+                            (diff4 and board.inv() and boardMask).countOneBits(),
+                    ),
+                    intArrayOf(
+                            // used
+                            (diff0 and board and boardMask).countOneBits(),
+                            (diff1 and board and boardMask).countOneBits(),
+                            (diff2 and board and boardMask).countOneBits(),
+                            (diff3 and board and boardMask).countOneBits(),
+                            (diff4 and board and boardMask).countOneBits(),
+                    )
             )
         }
 
@@ -132,12 +136,20 @@ class BitContext(val boardSize: IntOffset) {
             val right: ULong = board xor ((board shr 1) or (column shl (boardSize.x - 1)))
             val bottom: ULong = board xor ((board shl boardSize.x) or line)
             val top: ULong =
-                board xor ((board shr boardSize.x) or (line shl (boardSize.x * (boardSize.y - 1))))
+                    board xor
+                            ((board shr boardSize.x) or
+                                    (line shl (boardSize.x * (boardSize.y - 1))))
 
             val ALTERNATING_BITS = 0x55_55_55_55_55_55_55_55UL
             // number of set bits in 2-bit groups among left, right and bottom
-            val sum3_0 = ((left shr 1) and ALTERNATING_BITS) + ((right shr 1) and ALTERNATING_BITS) + ((bottom shr 1) and ALTERNATING_BITS)
-            val sum3_1 = ( left        and ALTERNATING_BITS) + ( right        and ALTERNATING_BITS) + ( bottom        and ALTERNATING_BITS)
+            val sum3_0 =
+                    ((left shr 1) and ALTERNATING_BITS) +
+                            ((right shr 1) and ALTERNATING_BITS) +
+                            ((bottom shr 1) and ALTERNATING_BITS)
+            val sum3_1 =
+                    (left and ALTERNATING_BITS) +
+                            (right and ALTERNATING_BITS) +
+                            (bottom and ALTERNATING_BITS)
 
             val ALTERNATING_BITS2 = 0x33_33_33_33_33_33_33_33UL
             val EVERY_FOURTH_BIT = 0x11_11_11_11_11_11_11_11UL
@@ -150,10 +162,12 @@ class BitContext(val boardSize: IntOffset) {
                 (( sum3_1        and ALTERNATING_BITS2) + ( top        and EVERY_FOURTH_BIT) + 5UL * ( board        and EVERY_FOURTH_BIT)).toLong(),
             )
             for (numbersOfSetBitsPart in numbersOfSetBits) {
-                // numbersOfSetBitsPart contains in each 4-bit group a number for a pixel on the board,
+                // numbersOfSetBitsPart contains in each 4-bit group a number for a pixel on the
+                // board,
                 // of how many adjacent pixels are different
                 // the right shift and binary and with 1111 (0xF as Long, 0xFL) gets this number
-                // this is multiplied by six to index into result, which is built of 10 6-bit numbers
+                // this is multiplied by six to index into result, which is built of 10 6-bit
+                // numbers
                 //
                 // unrolled for efficiency
                 result += 1L shl (6 * ((numbersOfSetBitsPart shr 60) and 0xFL).toInt())
@@ -174,22 +188,22 @@ class BitContext(val boardSize: IntOffset) {
                 result += 1L shl (6 * ((numbersOfSetBitsPart) and 0xFL).toInt())
             }
             return Grades(
-                intArrayOf(
-                    // free
-                    ((result).toInt()) and 0x3F,
-                    (((result) shr 6).toInt()) and 0x3F,
-                    (((result) shr 12).toInt()) and 0x3F,
-                    (((result) shr 18).toInt()) and 0x3F,
-                    (((result) shr 24).toInt()) and 0x3F,
-                ),
-                intArrayOf(
-                    // used
-                    (((result) shr 30).toInt()) and 0x3F,
-                    (((result) shr 36).toInt()) and 0x3F,
-                    (((result) shr 42).toInt()) and 0x3F,
-                    (((result) shr 48).toInt()) and 0x3F,
-                    (((result) shr 54).toInt()) and 0x3F,
-                )
+                    intArrayOf(
+                            // free
+                            ((result).toInt()) and 0x3F,
+                            (((result) shr 6).toInt()) and 0x3F,
+                            (((result) shr 12).toInt()) and 0x3F,
+                            (((result) shr 18).toInt()) and 0x3F,
+                            (((result) shr 24).toInt()) and 0x3F,
+                    ),
+                    intArrayOf(
+                            // used
+                            (((result) shr 30).toInt()) and 0x3F,
+                            (((result) shr 36).toInt()) and 0x3F,
+                            (((result) shr 42).toInt()) and 0x3F,
+                            (((result) shr 48).toInt()) and 0x3F,
+                            (((result) shr 54).toInt()) and 0x3F,
+                    )
             )
         }
 
@@ -197,21 +211,21 @@ class BitContext(val boardSize: IntOffset) {
             var result = this.board
             result = result or (result shr boardSize.x) or (result shr (2 * boardSize.x))
             result = result or (result shr 1) or (result shr 2)
-            return (result and placeablePositionMask3x3).inv() != 0UL
+            return (result.inv() and placeablePositionMask3x3) != 0UL
         }
 
         private fun placeablePositions1X5(): Boolean {
             var result = this.board
             result = result or (result shr boardSize.x) or (result shr (2 * boardSize.x))
             result = result or (result shr (2 * boardSize.x))
-            return (result and placeablePositionMask1x5).inv() != 0UL
+            return (result.inv() and placeablePositionMask1x5) != 0UL
         }
 
         private fun placeablePositions5X1(): Boolean {
             var result = this.board
             result = result or (result shr 1) or (result shr 2)
             result = result or (result shr 2)
-            return (result and placeablePositionMask5x1).inv() != 0UL
+            return (result.inv() and placeablePositionMask5x1) != 0UL
         }
 
         fun evaluate(): Float {
@@ -222,9 +236,9 @@ class BitContext(val boardSize: IntOffset) {
             score += grades.free[2] * 1
             score += grades.free[3] * -2
             score += grades.free[4] * -21
-//            score += grades.used[0] * 0
-//            score += grades.used[1] * 0
-//            score += grades.used[2] * 0
+            //            score += grades.used[0] * 0
+            //            score += grades.used[1] * 0
+            //            score += grades.used[2] * 0
             score += grades.used[3] * -1
             score += grades.used[4] * -5
             if (placeablePositions3X3()) score += 20
@@ -246,12 +260,16 @@ class BitContext(val boardSize: IntOffset) {
             while ((unShiftedBits and (line shl (height * boardSize.x))) != 0UL) height++
 
             return OffsetBrick(
-                IntOffset(startX, startY),
-                Brick(width, height, BooleanArray(width * height) {
-                    val x = it % width
-                    val y = it / width
-                    ((unShiftedBits shr (x + y * boardSize.x)) and 1UL) != 0UL
-                })
+                    IntOffset(startX, startY),
+                    Brick(
+                            width,
+                            height,
+                            BooleanArray(width * height) {
+                                val x = it % width
+                                val y = it / width
+                                ((unShiftedBits shr (x + y * boardSize.x)) and 1UL) != 0UL
+                            }
+                    )
             )
         }
     }
