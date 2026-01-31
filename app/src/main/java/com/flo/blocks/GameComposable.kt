@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.zIndex
+import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
@@ -173,7 +174,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val greedyGap by gameViewModel.greedyGap.collectAsState()
     val currentEval by gameViewModel.currentEval.collectAsState()
 
-    var achievementMessage by remember { mutableStateOf<GameViewModel.Achievement?>(null) }
+    var achievementMessage by remember { mutableStateOf<AchievementEvent?>(null) }
     val highscore by gameViewModel.highscore.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -503,7 +504,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
 
 @Composable
 fun AchievementNotification(
-        achievement: GameViewModel.Achievement,
+        achievement: AchievementEvent,
         alpha: Float,
         blockSize: Dp,
         modifier: Modifier = Modifier

@@ -5,6 +5,7 @@ import com.flo.blocks.GameViewModel.UndoEnabled
 import com.flo.blocks.data.AchievementFilter
 import com.flo.blocks.data.GameRepository
 import com.flo.blocks.data.SettingsRepository
+import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.canonical
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -156,7 +157,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // Setup a state where placing a brick clears 2 lines but NOT the whole
@@ -231,7 +232,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // 1x1 brick
@@ -278,7 +279,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // Setup a state where placing a brick clears 2 lines
@@ -351,7 +352,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // Setup a 3x3 brick and clear 2 lines that DON'T cover the whole brick
@@ -411,7 +412,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // 3x3 L-shape brick (user example): 0,0, 0,1, 0,2, 1,2, 2,2
@@ -457,7 +458,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         // 2x2 block: 0,0, 1,0, 0,1, 1,1
@@ -564,7 +565,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         val board = com.flo.blocks.game.ColoredBoard(8, 8)
@@ -616,7 +617,7 @@ class GameViewModelTest {
                                 GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
-                        val events = mutableListOf<GameViewModel.Achievement>()
+                        val events = mutableListOf<AchievementEvent>()
                         val job = launch { viewModel.achievementEvents.collect { events.add(it) } }
 
                         val board = com.flo.blocks.game.ColoredBoard(8, 8)

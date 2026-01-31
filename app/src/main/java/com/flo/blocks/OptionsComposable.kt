@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.flo.blocks.data.AchievementFilter
+import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.BlockColor
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBoard
@@ -518,7 +519,7 @@ fun OptionsPreviewBoard(
 
     // Achievement Notification Overlay
     val dummyAchievement = remember {
-        GameViewModel.Achievement(
+        AchievementEvent(
                 brick = ColoredBrick(Brick(1, 1, booleanArrayOf(true)), BlockColor.BLUE),
                 cleared = 4,
                 isNewRecord = true,
