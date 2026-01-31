@@ -128,7 +128,8 @@ class GameViewModelTest {
                         whenever(settingsRepository.boardWidthFlow).thenReturn(flowOf(10))
                         whenever(settingsRepository.boardHeightFlow).thenReturn(flowOf(15))
 
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         assertEquals(10, viewModel.game.value.board.width)
@@ -138,7 +139,8 @@ class GameViewModelTest {
         @Test
         fun `saveBoardSize saves dimensions to repository`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         viewModel.saveBoardSize(12, 12)
@@ -150,7 +152,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers achievement message on multi-line clear`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -224,7 +227,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers come and gone and merges message`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -270,7 +274,8 @@ class GameViewModelTest {
         @Test
         fun `achievements are independent of rotation`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -342,7 +347,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers random congrats when no achievements`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -401,7 +407,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers minimalist achievement for L-shape`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -446,7 +453,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers minimalist achievement for 2x2 block`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -488,7 +496,8 @@ class GameViewModelTest {
         fun `highscore is detected on loss and saved on new game`() =
                 runTest(testDispatcher) {
                         whenever(settingsRepository.highscoreFlow).thenReturn(flowOf(10))
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         assertEquals(10, viewModel.highscore.value)
@@ -551,7 +560,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers around the corner achievement`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -602,7 +612,8 @@ class GameViewModelTest {
         @Test
         fun `placeBrick triggers large corner achievement`() =
                 runTest(testDispatcher) {
-                        val viewModel = GameViewModel(settingsRepository, gameRepository)
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
                         advanceUntilIdle()
 
                         val events = mutableListOf<GameViewModel.Achievement>()
@@ -653,5 +664,41 @@ class GameViewModelTest {
                         assertEquals(true, ach.largeCorner)
 
                         job.cancel()
+                }
+
+        @Test
+        fun `requestHint triggers computation in manual mode`() =
+                runTest(testDispatcher) {
+                        whenever(settingsRepository.computeEnabledFlow)
+                                .thenReturn(flowOf(ComputeEnabled.Button))
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
+                        advanceUntilIdle()
+
+                        // 1. Setup a board state where a move is possible
+                        val board = com.flo.blocks.game.ColoredBoard(8, 8)
+                        val brick = com.flo.blocks.game.rect(0, 0, 0, 0) // 1x1 brick
+                        val coloredBrick =
+                                com.flo.blocks.game.ColoredBrick(
+                                        brick,
+                                        com.flo.blocks.game.BlockColor.RED
+                                )
+
+                        viewModel.game.value =
+                                com.flo.blocks.game.GameState(
+                                        board,
+                                        arrayOf(coloredBrick, null, null),
+                                        0
+                                )
+
+                        // Ensure no computation is running or result is ready
+                        assertEquals(null, viewModel.nextMove.value)
+
+                        // 2. Request hint
+                        viewModel.requestHint()
+                        advanceUntilIdle()
+
+                        // 3. Verify a move is suggested
+                        assert(viewModel.nextMove.value != null)
                 }
 }

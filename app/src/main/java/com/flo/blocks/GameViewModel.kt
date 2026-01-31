@@ -1,6 +1,5 @@
 package com.flo.blocks
 
-import android.util.Log
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +13,7 @@ import com.flo.blocks.game.ColoredBoard
 import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.OffsetBrick
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -32,7 +32,9 @@ import kotlin.math.min
 import kotlin.math.pow
 
 class GameViewModel(
-    private val settingsRepository: SettingsRepository, private val gameRepository: GameRepository
+    private val settingsRepository: SettingsRepository,
+    private val gameRepository: GameRepository,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     enum class ComputeEnabled {
@@ -372,12 +374,13 @@ class GameViewModel(
         gameRepository.updateAchievement(newAchievementData)
 
         viewModelScope.launch {
-            val evalToCheck = if (game.value.bricks.all { it == null } || game.value.bricks.all { it != null }) {
-                currentEval.value
-            } else {
-                job?.join()
-                bestEval.value
-            }
+            val evalToCheck =
+                if (game.value.bricks.all { it == null } || game.value.bricks.all { it != null }) {
+                    currentEval.value
+                } else {
+                    job?.join()
+                    bestEval.value
+                }
 
             val isBestMove =
                 oldBestEval != null && evalToCheck != null && evalToCheck >= oldBestEval - 0.001f
@@ -684,6 +687,7 @@ class GameViewModel(
 
     fun requestHint() {
         hintRequested.value = true
+        startComputation(game.value.bricks.filterNotNull().map { it.brick })
         moves?.let {
             if (it.isNotEmpty()) {
                 nextMove.value = it[0]
@@ -866,7 +870,7 @@ class GameViewModel(
     }
 
     fun startComputation(bricks: List<Brick>) {
-        Log.i("compute", "called")
+
         val computationStartState = Pair(game.value.board.board(), bricks)
         if (computationStartState == currentState) return
 
@@ -881,7 +885,7 @@ class GameViewModel(
                 movesScore = null
                 job?.join()
                 job = viewModelScope.launch {
-                    withContext(Dispatchers.Default) {
+                    withContext(defaultDispatcher) {
                         if (game.value.board.width * game.value.board.height <= 64) {
                             val context = BitContext(
                                 IntOffset(
@@ -930,7 +934,6 @@ class GameViewModel(
                                 }
                             }
                         }
-                        Log.i("compute", "finished")
                     }
                 }
             }
