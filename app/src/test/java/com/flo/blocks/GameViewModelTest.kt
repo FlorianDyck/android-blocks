@@ -446,7 +446,7 @@ class GameViewModelTest {
                         assertEquals(1, events.size)
                         val ach = events[0]
                         assertEquals(true, ach.blockRemoved)
-                        assertEquals(true, ach.isMinimalist)
+                        assertEquals(true, ach.achievementFlags.isMinimalist)
 
                         job.cancel()
                 }
@@ -488,7 +488,7 @@ class GameViewModelTest {
                         assertEquals(1, events.size)
                         val ach = events[0]
                         assertEquals(true, ach.blockRemoved)
-                        assertEquals(true, ach.isMinimalist)
+                        assertEquals(true, ach.achievementFlags.isMinimalist)
 
                         job.cancel()
                 }
@@ -603,9 +603,9 @@ class GameViewModelTest {
 
                         assertEquals(1, events.size)
                         val ach = events[0]
-                        assertEquals(true, ach.aroundTheCorner)
-                        assertEquals(false, ach.largeCorner) // only 2 lines cleared (Row 0, Col 0)
-                        assertEquals(false, ach.wideCorner) // Neighbors of (0,0): (1,0), (0,1).
+                        assertEquals(true, ach.achievementFlags.isAroundTheCorner)
+                        assertEquals(false, ach.achievementFlags.isLargeCorner) // only 2 lines cleared (Row 0, Col 0)
+                        assertEquals(false, ach.achievementFlags.isWideCorner) // Neighbors of (0,0): (1,0), (0,1).
 
                         job.cancel()
                 }
@@ -661,8 +661,8 @@ class GameViewModelTest {
 
                         assertEquals(1, events.size)
                         val ach = events[0]
-                        assertEquals(true, ach.aroundTheCorner)
-                        assertEquals(true, ach.largeCorner)
+                        assertEquals(true, ach.achievementFlags.isAroundTheCorner)
+                        assertEquals(true, ach.achievementFlags.isLargeCorner)
 
                         job.cancel()
                 }

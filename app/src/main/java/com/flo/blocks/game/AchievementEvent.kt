@@ -5,12 +5,6 @@ data class AchievementEvent(
         val cleared: Int,
         val isNewRecord: Boolean,
         val blockRemoved: Boolean,
-        val isMinimalist: Boolean,
-        val aroundTheCorner: Boolean,
-        val largeCorner: Boolean,
-        val hugeCorner: Boolean,
-        val wideCorner: Boolean,
-        val notEvenAround: Boolean,
-        val largeWideCorner: Boolean,
+        val achievementFlags: AchievementFlags,
         val isBestMove: Boolean = false
 )

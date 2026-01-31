@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.flo.blocks.data.AchievementFilter
 import com.flo.blocks.game.AchievementEvent
+import com.flo.blocks.game.AchievementFlags
 import com.flo.blocks.game.BlockColor
 import com.flo.blocks.game.Brick
 import com.flo.blocks.game.ColoredBoard
@@ -524,13 +525,15 @@ fun OptionsPreviewBoard(
                 cleared = 4,
                 isNewRecord = true,
                 blockRemoved = false,
-                isMinimalist = false,
-                aroundTheCorner = false,
-                largeCorner = false,
-                hugeCorner = false,
-                wideCorner = false,
-                notEvenAround = false,
-                largeWideCorner = false
+                achievementFlags = AchievementFlags(
+                    isMinimalist = false,
+                    isAroundTheCorner = false,
+                    isLargeCorner = false,
+                    isHugeCorner = false,
+                    isWideCorner = false,
+                    isNotEvenAround = false,
+                    isLargeWideCorner = false
+                )
         )
     }
 

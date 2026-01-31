@@ -515,40 +515,34 @@ fun AchievementNotification(
     if (achievement.isBestMove) {
         parts.add(stringResource(R.string.congrats_best_move))
     }
-    if (achievement.isMinimalist) parts.add(stringResource(R.string.notify_minimalist))
+    if (achievement.achievementFlags.isMinimalist) parts.add(stringResource(R.string.notify_minimalist))
     else if (achievement.blockRemoved) parts.add(stringResource(R.string.notify_come_and_gone))
 
     if (achievement.isNewRecord)
             parts.add(stringResource(R.string.notify_new_record, achievement.cleared))
 
     // Corner Achievements Hierarchy
-    if (achievement.largeWideCorner) {
+    if (achievement.achievementFlags.isLargeWideCorner) {
         parts.add(stringResource(R.string.badge_large_wide_corner))
     }
-    if (achievement.hugeCorner) {
+    if (achievement.achievementFlags.isHugeCorner) {
         parts.add(stringResource(R.string.badge_huge_corner))
     }
-    if (achievement.notEvenAround) {
+    if (achievement.achievementFlags.isNotEvenAround) {
         parts.add(stringResource(R.string.badge_not_even_around))
     }
 
     // Show LargeCorner only if not superseded by HugeCorner or LargeWideCorner
-    if (achievement.largeCorner && !achievement.hugeCorner && !achievement.largeWideCorner) {
+    if (achievement.achievementFlags.isLargeCornerHighest()) {
         parts.add(stringResource(R.string.badge_large_corner))
     }
     // Show WideCorner only if not superseded by LargeWideCorner
-    if (achievement.wideCorner && !achievement.largeWideCorner) {
+    if (achievement.achievementFlags.isWideCornerHighest()) {
         parts.add(stringResource(R.string.badge_wide_corner))
     }
 
     // Show AroundTheCorner only if no specialized corner achievement is present
-    val anySpecializedCorner =
-            achievement.largeCorner ||
-                    achievement.hugeCorner ||
-                    achievement.wideCorner ||
-                    achievement.notEvenAround ||
-                    achievement.largeWideCorner
-    if (achievement.aroundTheCorner && !anySpecializedCorner) {
+    if (achievement.achievementFlags.isAroundTheCornerHighest()) {
         parts.add(stringResource(R.string.badge_around_the_corner))
     }
     if (parts.isEmpty()) parts.add(congratulations.random())

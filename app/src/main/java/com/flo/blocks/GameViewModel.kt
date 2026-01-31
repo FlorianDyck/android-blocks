@@ -359,13 +359,7 @@ class GameViewModel(
                         cleared,
                         isNewRecord,
                         blockRemoved,
-                        flags.isMinimalist,
-                        flags.isAroundTheCorner,
-                        flags.isLargeCorner,
-                        flags.isHugeCorner,
-                        flags.isWideCorner,
-                        flags.isNotEvenAround,
-                        flags.isLargeWideCorner,
+                        flags,
                         isBestMove
                     )
                 )

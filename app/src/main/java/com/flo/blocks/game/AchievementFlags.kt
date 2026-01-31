@@ -11,6 +11,10 @@ data class AchievementFlags(
         val isNotEvenAround: Boolean,
         val isLargeWideCorner: Boolean
 ) {
+    fun isAroundTheCornerHighest() = isAroundTheCorner && !isLargeCorner && !isWideCorner
+    fun isLargeCornerHighest() = isLargeCorner && !isHugeCorner && !isLargeWideCorner
+    fun isWideCornerHighest() = isWideCorner && !isLargeWideCorner && !isNotEvenAround
+
     companion object {
         fun calculate(
             brick: Brick,
