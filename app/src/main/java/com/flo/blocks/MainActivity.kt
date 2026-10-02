@@ -23,6 +23,7 @@ import androidx.room.Room
 import com.flo.blocks.data.AppDatabase
 import com.flo.blocks.data.DataStoreSettingsRepository
 import com.flo.blocks.data.GameRepository
+import com.flo.blocks.game.NativeSolver
 import com.flo.blocks.ui.theme.BlocksTheme
 import kotlin.math.pow
 
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        NativeSolver.initialize(applicationContext)
         enableEdgeToEdge()
 
         val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "game-database")
