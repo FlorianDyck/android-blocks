@@ -169,6 +169,17 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     val suggestion by gameViewModel.nextMove.asStateFlow().collectAsState()
     //    val computation by computeViewModel.currentMove.asStateFlow().collectAsState()
     val computationProgress by gameViewModel.progress.asStateFlow().collectAsState()
+    var showComputationProgress by remember { mutableStateOf(false) }
+
+    LaunchedEffect(computationProgress < 1f) {
+        if (computationProgress >= 1f) {
+            showComputationProgress = false
+            return@LaunchedEffect
+        }
+
+        delay(500)
+        showComputationProgress = true
+    }
 
     val bestEval by gameViewModel.bestEval.collectAsState()
     val greedyGap by gameViewModel.greedyGap.collectAsState()
@@ -400,7 +411,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
                         }
                     }
                 }
-                if (computationProgress < 1) {
+                if (showComputationProgress && computationProgress < 1f) {
                     LinearProgressIndicator(
                             progress = { computationProgress },
                             modifier = Modifier.width((game.board.width * blockSize).dp),
