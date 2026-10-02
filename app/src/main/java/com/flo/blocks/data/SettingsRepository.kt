@@ -17,6 +17,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 interface SettingsRepository {
     val computeEnabledFlow: Flow<ComputeEnabled>
+    val solverAlgorithmFlow: Flow<SolverAlgorithm>
     val undoEnabledFlow: Flow<UndoEnabled>
     val showUndoIfEnabledFlow: Flow<Boolean>
     val showNewGameButtonFlow: Flow<Boolean>
@@ -35,6 +36,7 @@ interface SettingsRepository {
     val congratulateBestMoveFlow: Flow<Boolean>
 
     suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled)
+    suspend fun saveSolverAlgorithm(algorithm: SolverAlgorithm)
     suspend fun saveUndoEnabled(undoEnabled: UndoEnabled)
     suspend fun saveShowUndoIfEnabled(showUndo: Boolean)
     suspend fun saveShowNewGameButton(show: Boolean)
@@ -68,6 +70,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
 
     private object PreferencesKeys {
         val COMPUTE_ENABLED = stringPreferencesKey("compute_enabled")
+        val SOLVER_ALGORITHM = stringPreferencesKey("solver_algorithm")
         val UNDO_ENABLED = stringPreferencesKey("undo_enabled")
         val SHOW_UNDO_IF_ENABLED = booleanPreferencesKey("show_undo_if_enabled")
         val SHOW_NEW_GAME_BUTTON = booleanPreferencesKey("show_new_game_button")
@@ -93,6 +96,11 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             val computeEnabledString =
                 preferences[PreferencesKeys.COMPUTE_ENABLED] ?: ComputeEnabled.Hidden.name
             ComputeEnabled.valueOf(computeEnabledString)
+        }
+
+    override val solverAlgorithmFlow: Flow<SolverAlgorithm> =
+        context.dataStore.data.map { preferences ->
+            SolverAlgorithm.fromStoredValue(preferences[PreferencesKeys.SOLVER_ALGORITHM])
         }
 
     override val undoEnabledFlow: Flow<UndoEnabled> = context.dataStore.data.map { preferences ->
@@ -175,6 +183,12 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
     override suspend fun saveComputeEnabled(computeEnabled: ComputeEnabled) {
         context.dataStore.edit { settings ->
             settings[PreferencesKeys.COMPUTE_ENABLED] = computeEnabled.name
+        }
+    }
+
+    override suspend fun saveSolverAlgorithm(algorithm: SolverAlgorithm) {
+        context.dataStore.edit { settings ->
+            settings[PreferencesKeys.SOLVER_ALGORITHM] = algorithm.name
         }
     }
 

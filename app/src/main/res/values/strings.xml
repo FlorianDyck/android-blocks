@@ -30,6 +30,7 @@
     <!-- Settings -->
     <string name="settings_gameplay">Gameplay</string>
     <string name="settings_computation">Computation</string>
+    <string name="settings_algorithm">Algorithm</string>
     <string name="settings_allow_undo">Allow Undo</string>
     <string name="settings_show_undo_button">Show Undo Button</string>
     <string name="settings_show_new_game_button">Show New Game Button</string>
@@ -53,6 +54,15 @@
     <string name="compute_auto">Auto</string>
     <string name="compute_button">Button</string>
     <string name="compute_hidden">Hidden</string>
+
+    <string name="algorithm_android_current">Android current</string>
+    <string name="algorithm_android_greedy">Android greedy</string>
+    <string name="algorithm_native_greedy">C++ greedy</string>
+    <string name="algorithm_native_beam_128">C++ beam 128</string>
+    <string name="algorithm_native_beam_512">C++ beam 512</string>
+    <string name="algorithm_native_exhaustive">C++ exhaustive (100 ms limit)</string>
+    <string name="algorithm_native_pattern">C++ pattern (8×8; else beam 512)</string>
+    <string name="algorithm_native_symmetric">C++ symmetric (8×8; else beam 512)</string>
 
     <string name="undo_always">Always</string>
     <string name="undo_unless_new_blocks">Unless New Blocks</string>

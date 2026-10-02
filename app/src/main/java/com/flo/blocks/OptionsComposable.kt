@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.flo.blocks.data.AchievementFilter
+import com.flo.blocks.data.SolverAlgorithm
 import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.AchievementFlags
 import com.flo.blocks.game.BlockColor
@@ -269,6 +270,7 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             // Hoist state variables
             var computeEnabled by remember { mutableStateOf(computeViewModel.computeEnabled) }
+            var solverAlgorithm by remember { mutableStateOf(computeViewModel.solverAlgorithm) }
             var undoEnabled by remember { mutableStateOf(computeViewModel.undoEnabled) }
             var showBackIfEnabled by remember {
                 mutableStateOf(computeViewModel.showUndoIfEnabled.value)
@@ -327,6 +329,27 @@ fun Options(computeViewModel: GameViewModel, openAchievements: () -> Unit, close
                     ) {
                         computeEnabled = it
                         computeViewModel.computeEnabled = it
+                    }
+
+                    val algorithmLabels =
+                            mapOf(
+                                    SolverAlgorithm.AndroidCurrent to R.string.algorithm_android_current,
+                                    SolverAlgorithm.AndroidGreedy to R.string.algorithm_android_greedy,
+                                    SolverAlgorithm.NativeGreedy to R.string.algorithm_native_greedy,
+                                    SolverAlgorithm.NativeBeam128 to R.string.algorithm_native_beam_128,
+                                    SolverAlgorithm.NativeBeam512 to R.string.algorithm_native_beam_512,
+                                    SolverAlgorithm.NativeExhaustive to R.string.algorithm_native_exhaustive,
+                                    SolverAlgorithm.NativePattern to R.string.algorithm_native_pattern,
+                                    SolverAlgorithm.NativeSymmetric to R.string.algorithm_native_symmetric
+                            )
+                    SelectPossibleValue(
+                            stringResource(R.string.settings_algorithm),
+                            solverAlgorithm,
+                            SolverAlgorithm.entries,
+                            label = { stringResource(algorithmLabels.getValue(it)) }
+                    ) {
+                        solverAlgorithm = it
+                        computeViewModel.solverAlgorithm = it
                     }
 
                     val undoLabels =
