@@ -5,6 +5,7 @@ import com.flo.blocks.GameViewModel.UndoEnabled
 import com.flo.blocks.data.AchievementFilter
 import com.flo.blocks.data.GameRepository
 import com.flo.blocks.data.SettingsRepository
+import com.flo.blocks.data.SolverAlgorithm
 import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.canonical
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.verify
@@ -40,6 +42,8 @@ class GameViewModelTest {
                 // Default mocks
                 whenever(settingsRepository.computeEnabledFlow)
                         .thenReturn(flowOf(ComputeEnabled.Hidden))
+                whenever(settingsRepository.solverAlgorithmFlow)
+                        .thenReturn(flowOf(SolverAlgorithm.AndroidCurrent))
                 whenever(settingsRepository.undoEnabledFlow).thenReturn(flowOf(UndoEnabled.Always))
                 whenever(settingsRepository.showUndoIfEnabledFlow).thenReturn(flowOf(true))
                 whenever(settingsRepository.showNewGameButtonFlow).thenReturn(flowOf(false))
@@ -701,6 +705,43 @@ class GameViewModelTest {
 
                         // 3. Verify a move is suggested
                         assert(viewModel.nextMove.value != null)
+                }
+
+        @Test
+        fun `selecting Android greedy saves choice and recomputes hint for same board`() =
+                runTest(testDispatcher) {
+                        whenever(settingsRepository.computeEnabledFlow)
+                                .thenReturn(flowOf(ComputeEnabled.Button))
+                        val viewModel =
+                                GameViewModel(settingsRepository, gameRepository, testDispatcher)
+                        advanceUntilIdle()
+
+                        val brick = com.flo.blocks.game.field(0, 0)
+                        viewModel.game.value =
+                                com.flo.blocks.game.GameState(
+                                        com.flo.blocks.game.ColoredBoard(8, 8),
+                                        arrayOf(
+                                                com.flo.blocks.game.ColoredBrick(
+                                                        brick,
+                                                        com.flo.blocks.game.BlockColor.RED
+                                                ),
+                                                null,
+                                                null
+                                        ),
+                                        0
+                                )
+
+                        viewModel.requestHint()
+                        advanceUntilIdle()
+                        assertNotNull(viewModel.nextMove.value)
+
+                        viewModel.progress.value = -1f
+                        viewModel.solverAlgorithm = SolverAlgorithm.AndroidGreedy
+                        advanceUntilIdle()
+
+                        verify(settingsRepository).saveSolverAlgorithm(SolverAlgorithm.AndroidGreedy)
+                        assertNotNull(viewModel.nextMove.value)
+                        assertEquals(1f, viewModel.progress.value, 0f)
                 }
 
         @Test

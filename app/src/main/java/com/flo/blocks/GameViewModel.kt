@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.flo.blocks.data.AchievementFilter
 import com.flo.blocks.data.GameRepository
 import com.flo.blocks.data.SettingsRepository
+import com.flo.blocks.data.SolverAlgorithm
 import com.flo.blocks.game.AchievementEvent
 import com.flo.blocks.game.AchievementFlags
 import com.flo.blocks.game.Board
@@ -15,8 +16,12 @@ import com.flo.blocks.game.ColoredBrick
 import com.flo.blocks.game.GameState
 import com.flo.blocks.game.MoveCalculator
 import com.flo.blocks.game.MoveSequence
+import com.flo.blocks.game.NativeSolver
 import com.flo.blocks.game.OffsetBrick
 import com.flo.blocks.game.findBestGreedySequence
+import com.flo.blocks.game.findBestGreedySequenceBit
+import com.flo.blocks.game.findBestGreedySequenceLarge
+import com.flo.blocks.game.BitContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,6 +32,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -62,6 +68,19 @@ class GameViewModel(
             field = value
             viewModelScope.launch { settingsRepository.saveUndoEnabled(value) }
             canUndo.value = canUndo()
+        }
+
+    var solverAlgorithm = SolverAlgorithm.AndroidCurrent
+        set(value) {
+            if (field == value) return
+            field = value
+            viewModelScope.launch { settingsRepository.saveSolverAlgorithm(value) }
+            if (computeEnabled == ComputeEnabled.Auto || hintRequested.value || showBestEval ||
+                showGreedyGapInfo || congratulateBestMove) {
+                startComputation(game.value.bricks.filterNotNull().map { it.brick })
+            } else {
+                stopComputation()
+            }
         }
 
     var achievementShowMinimalist = AchievementFilter.Always
@@ -146,6 +165,7 @@ class GameViewModel(
                 history.addAll(fullHistory.dropLast(1))
             }
 
+            solverAlgorithm = settingsRepository.solverAlgorithmFlow.first()
             computeEnabled = settingsRepository.computeEnabledFlow.first()
             undoEnabled = settingsRepository.undoEnabledFlow.first()
             showUndoIfEnabled.value = settingsRepository.showUndoIfEnabledFlow.first()
@@ -467,16 +487,22 @@ class GameViewModel(
     }
 
     val progress = MutableStateFlow(1f)
-    private var currentState: Pair<Board, List<Brick>>? = null
+    private data class ComputationKey(
+        val board: Board,
+        val bricks: List<Brick>,
+        val algorithm: SolverAlgorithm
+    )
+
+    private var currentState: ComputationKey? = null
     private var job: Job? = null
+    private var nativeCancellation: NativeSolver.Cancellation? = null
 
     fun startComputation(bricks: List<Brick>) {
-
-        val computationStartState = Pair(game.value.board.board(), bricks)
+        val key = ComputationKey(game.value.board.board(), bricks, solverAlgorithm)
 
         viewModelScope.launch {
             mutex.withLock {
-                if (computationStartState == currentState) {
+                if (key == currentState) {
                     // If we are in Auto mode or a hint was requested, ensure the best move (if
                     // computed) is shown.
                     // This handles cases where we switch to Auto mode after computation is already
@@ -486,51 +512,149 @@ class GameViewModel(
                     }
                     return@launch
                 }
-                currentState = computationStartState
+                nativeCancellation?.cancel()
+                job?.cancel()
+                currentState = key
                 moves = null
                 nextMove.value = null
                 bestEval.value = null
                 greedyGap.value = null
                 movesScore = null
-                job?.join()
+                progress.value = 0f
+                val cancellation = if (key.algorithm.isNative()) NativeSolver.Cancellation() else null
+                nativeCancellation = cancellation
                 job = viewModelScope.launch {
                     withContext(defaultDispatcher) {
                         var greedyScore: Float? = null
                         if (showGreedyGapInfo) {
-                            greedyScore = findBestGreedySequence(computationStartState.first, bricks)
+                            greedyScore = findBestGreedySequence(key.board, bricks)
                         }
-
-                        moveCalculator.compute(
-                            computationStartState.first,
-                            bricks,
-                            onProgress = { progress.value = it },
-                            onNewBest = { bestSeq ->
-                                mutex.withLock {
-                                    if (movesScore == null || bestSeq > movesScore!!) {
-                                        moves = bestSeq.moves
-                                        movesScore = bestSeq
-                                        bestEval.value = bestSeq.finalEval.normalize()
-                                        if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
-                                            nextMove.value = bestSeq.moves[0]
-                                        }
-                                        if (showGreedyGapInfo && greedyScore != null) {
-                                            greedyGap.value =
-                                                bestSeq.finalEval.normalize() - greedyScore.normalize()
-                                        }
+                        when (key.algorithm) {
+                            SolverAlgorithm.AndroidCurrent -> moveCalculator.compute(
+                                key.board,
+                                bricks,
+                                onProgress = {
+                                    mutex.withLock {
+                                        if (currentState == key && job?.isActive == true) progress.value = it
                                     }
+                                },
+                                onNewBest = { publishSequence(key, it, greedyScore) }
+                            )
+                            SolverAlgorithm.AndroidGreedy -> {
+                                val sequence = androidGreedySequence(key.board, bricks)
+                                if (sequence != null) publishSequence(key, sequence, greedyScore)
+                            }
+                            else -> {
+                                val token = checkNotNull(cancellation)
+                                NativeSolver.solve(
+                                    key.board,
+                                    bricks,
+                                    key.algorithm.nativeMode(key.board),
+                                    onImprovement = { solution ->
+                                        val sequence = nativeSequence(key.board, bricks, solution)
+                                        if (sequence != null) {
+                                            runBlocking { publishSequence(key, sequence, greedyScore, true) }
+                                        }
+                                    },
+                                    cancellation = token
+                                ).also { solution ->
+                                    val sequence = nativeSequence(key.board, bricks, solution)
+                                    if (sequence != null) publishSequence(key, sequence, greedyScore, true)
                                 }
-                            })
+                            }
+                        }
+                        mutex.withLock {
+                            if (currentState == key) progress.value = 1f
+                        }
                     }
+                }
+                job?.invokeOnCompletion { cancellation?.close() }
+            }
+        }
+    }
+
+    private suspend fun publishSequence(
+        key: ComputationKey,
+        sequence: MoveSequence,
+        greedyScore: Float?,
+        native: Boolean = false
+    ) {
+        if (sequence.moves.isEmpty()) return
+        mutex.withLock {
+            if (currentState != key || job?.isActive != true) return@withLock
+            if (native || movesScore == null || sequence > movesScore!!) {
+                moves = sequence.moves
+                movesScore = sequence
+                bestEval.value = sequence.finalEval.normalize()
+                if (computeEnabled == ComputeEnabled.Auto || hintRequested.value) {
+                    nextMove.value = sequence.moves[0]
+                }
+                if (showGreedyGapInfo && greedyScore != null) {
+                    greedyGap.value = sequence.finalEval.normalize() - greedyScore.normalize()
                 }
             }
         }
     }
 
+    private fun SolverAlgorithm.isNative(): Boolean =
+        this != SolverAlgorithm.AndroidCurrent && this != SolverAlgorithm.AndroidGreedy
+
+    private fun SolverAlgorithm.nativeMode(board: Board): NativeSolver.Mode = when (this) {
+        SolverAlgorithm.NativeGreedy -> NativeSolver.Mode.GREEDY
+        SolverAlgorithm.NativeBeam128 -> NativeSolver.Mode.BEAM_128
+        SolverAlgorithm.NativeBeam512 -> NativeSolver.Mode.BEAM_512
+        SolverAlgorithm.NativeExhaustive -> NativeSolver.Mode.EXHAUSTIVE
+        SolverAlgorithm.NativePattern -> if (board.width == 8 && board.height == 8)
+            NativeSolver.Mode.PATTERN_8X8 else NativeSolver.Mode.BEAM_512
+        SolverAlgorithm.NativeSymmetric -> if (board.width == 8 && board.height == 8)
+            NativeSolver.Mode.SYMMETRIC_8X8 else NativeSolver.Mode.BEAM_512
+        else -> error("Not a native algorithm: $this")
+    }
+
+    private fun androidGreedySequence(board: Board, bricks: List<Brick>): MoveSequence? {
+        if (bricks.isEmpty()) return null
+        if (board.width * board.height > 64) return findBestGreedySequenceLarge(board, bricks)
+        val context = BitContext(IntOffset(board.width, board.height))
+        return findBestGreedySequenceBit(
+            context.BitBoard(board), bricks.map { context.BitBrick(it) }
+        )
+    }
+
+    private fun nativeSequence(
+        initial: Board,
+        bricks: List<Brick>,
+        solution: NativeSolver.Solution
+    ): MoveSequence? {
+        if (solution.moves.isEmpty()) return null
+        var board = initial
+        val moves = ArrayList<OffsetBrick>(solution.moves.size)
+        val evaluations = ArrayList<Float>(solution.moves.size)
+        val used = BooleanArray(bricks.size)
+        for (move in solution.moves) {
+            val brick = bricks.getOrNull(move.block) ?: return null
+            if (used[move.block]) return null
+            used[move.block] = true
+            val offset = brick.offset(IntOffset(move.x, move.y))
+            if (!board.canPlace(offset)) return null
+            board = board.place(offset).first
+            moves.add(offset)
+            evaluations.add(board.evaluate())
+        }
+        if (solution.complete && moves.size != bricks.size) return null
+        return MoveSequence(
+            moves, evaluations, evaluations.last(),
+            evaluations.maxOrNull() ?: Float.NEGATIVE_INFINITY,
+            evaluations.sum()
+        )
+    }
+
     fun stopComputation() {
+        nativeCancellation?.cancel()
+        job?.cancel()
         viewModelScope.launch {
             mutex.withLock {
-                job?.cancel()
                 currentState = null
+                nativeCancellation = null
                 nextMove.value = null
                 progress.value = 1f
             }
