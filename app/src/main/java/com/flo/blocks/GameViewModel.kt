@@ -468,6 +468,8 @@ class GameViewModel(
     }
 
     private fun Float.normalize(): Float {
+        val board = game.value.board
+        NativeSolver.calibratedScore(this, board.width, board.height)?.let { return it.toFloat() }
         if (maxEval == minEval) return 0f
         val ratio = (this - minEval) / (maxEval - minEval)
         return ratio.coerceIn(0f, 1f).pow(10f) * 100f

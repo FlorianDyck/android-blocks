@@ -68,6 +68,7 @@ object NativeSolver {
 
     @Volatile private var appContext: Context? = null
     private val preparedModels = mutableMapOf<Mode, String>()
+    private val calibrations = mutableMapOf<Pair<Int, Int>, ScoreCalibration?>()
 
     init {
         System.loadLibrary("blocks_native")
@@ -76,6 +77,16 @@ object NativeSolver {
     /** Supply the application context before using a learned 8×8 model. */
     fun initialize(context: Context) {
         appContext = context.applicationContext
+    }
+
+    /** Map a raw board evaluation to its calibrated display percentile, when available. */
+    @Synchronized
+    fun calibratedScore(evaluation: Float, width: Int, height: Int): Int? {
+        val context = appContext ?: return null
+        val key = width to height
+        val calibration = calibrations.getOrPut(key) { ScoreCalibration.load(context, width, height) }
+            ?: return null
+        return calibration.score(evaluation)
     }
 
     fun solve(
