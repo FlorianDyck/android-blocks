@@ -13,6 +13,6 @@ enum class SolverAlgorithm {
 
     companion object {
         fun fromStoredValue(value: String?): SolverAlgorithm =
-            entries.firstOrNull { it.name == value } ?: AndroidCurrent
+            entries.firstOrNull { it.name == value } ?: NativeBeam512
     }
 }

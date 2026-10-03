@@ -70,7 +70,7 @@ class GameViewModel(
             canUndo.value = canUndo()
         }
 
-    var solverAlgorithm = SolverAlgorithm.AndroidCurrent
+    var solverAlgorithm = SolverAlgorithm.NativeBeam512
         set(value) {
             if (field == value) return
             field = value

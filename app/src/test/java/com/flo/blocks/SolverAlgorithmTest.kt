@@ -13,8 +13,8 @@ class SolverAlgorithmTest {
     }
 
     @Test
-    fun `missing or unknown algorithm defaults to Android search`() {
-        assertEquals(SolverAlgorithm.AndroidCurrent, SolverAlgorithm.fromStoredValue(null))
-        assertEquals(SolverAlgorithm.AndroidCurrent, SolverAlgorithm.fromStoredValue("FuturePolicy"))
+    fun `missing or unknown algorithm defaults to Beam 512`() {
+        assertEquals(SolverAlgorithm.NativeBeam512, SolverAlgorithm.fromStoredValue(null))
+        assertEquals(SolverAlgorithm.NativeBeam512, SolverAlgorithm.fromStoredValue("FuturePolicy"))
     }
 }
