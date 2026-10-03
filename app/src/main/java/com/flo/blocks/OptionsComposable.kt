@@ -168,7 +168,12 @@ fun <T> SelectPossibleValue(
 }
 
 @Composable
-fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntState) {
+fun SizeOptions(
+        board: ColoredBoard,
+        width: MutableIntState,
+        height: MutableIntState,
+        solverAlgorithm: SolverAlgorithm
+) {
     var sync by remember { mutableStateOf(board.width == board.height) }
     val inSync by remember { derivedStateOf { sync && width.intValue == height.intValue } }
     AnimatedContent(targetState = inSync, contentAlignment = Alignment.Center, label = "inSync") {
@@ -192,7 +197,10 @@ fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntS
         }
     }
     SelectOption(stringResource(R.string.square_board), sync) { sync = it }
-    AnimatedVisibility(width.intValue * height.intValue > 64) {
+    AnimatedVisibility(
+            solverAlgorithm == SolverAlgorithm.AndroidCurrent &&
+                    width.intValue * height.intValue > 64
+    ) {
         Surface(color = MaterialTheme.colorScheme.errorContainer) {
             Text(
                     stringResource(
@@ -210,6 +218,7 @@ fun SizeOptions(board: ColoredBoard, width: MutableIntState, height: MutableIntS
 @Composable
 fun NewGameOptions(
         currentBoard: ColoredBoard,
+        solverAlgorithm: SolverAlgorithm,
         onCancel: () -> Unit,
         onConfirm: (Int, Int) -> Unit
 ) {
@@ -232,7 +241,7 @@ fun NewGameOptions(
                 val width = remember { mutableIntStateOf(currentBoard.width) }
                 val height = remember { mutableIntStateOf(currentBoard.height) }
 
-                SizeOptions(currentBoard, width, height)
+                SizeOptions(currentBoard, width, height, solverAlgorithm)
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = onCancel, modifier = Modifier.weight(1f)) {

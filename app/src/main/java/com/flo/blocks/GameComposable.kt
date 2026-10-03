@@ -324,6 +324,7 @@ fun Game(gameViewModel: GameViewModel, backProgress: Float, openSettings: () -> 
     if (showNewGameOptions.value) {
         NewGameOptions(
                 game.board,
+                gameViewModel.solverAlgorithm,
                 onCancel = { showNewGameOptions.value = false },
                 onConfirm = { width, height ->
                     gameViewModel.saveBoardSize(width, height)
