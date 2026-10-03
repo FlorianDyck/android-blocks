@@ -9,4 +9,5 @@ add_library(blocks_native SHARED
     solver/search.cpp)
 target_include_directories(blocks_native PRIVATE solver)
 target_compile_features(blocks_native PRIVATE cxx_std_20)
+set_target_properties(blocks_native PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_options(blocks_native PRIVATE -Wall -Wextra)

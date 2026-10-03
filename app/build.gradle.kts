@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.flo.blocks"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.flo.blocks"
@@ -18,11 +18,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
-        }
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++20"
-            }
         }
     }
     externalNativeBuild {
@@ -56,7 +51,7 @@ android {
     }
 }
 
-val mockitoAgent by configurations.creating
+val mockitoAgent = configurations.create("mockitoAgent")
 
 tasks.withType<Test> {
     doFirst {
