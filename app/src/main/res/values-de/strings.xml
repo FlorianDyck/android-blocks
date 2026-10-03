@@ -55,14 +55,14 @@
     <string name="compute_button">Knopf</string>
     <string name="compute_hidden">Versteckt</string>
 
-    <string name="algorithm_android_current">Android aktuell</string>
-    <string name="algorithm_android_greedy">Android gierig</string>
-    <string name="algorithm_native_greedy">C++ gierig</string>
-    <string name="algorithm_native_beam_128">C++ Beam 128</string>
-    <string name="algorithm_native_beam_512">C++ Beam 512</string>
-    <string name="algorithm_native_exhaustive">C++ vollständig (100-ms-Limit)</string>
-    <string name="algorithm_native_pattern">C++ Muster (8×8; sonst Beam 512)</string>
-    <string name="algorithm_native_symmetric">C++ symmetrisch (8×8; sonst Beam 512)</string>
+    <string name="algorithm_android_current">Legacy (langsam auf großen Brettern)</string>
+    <string name="algorithm_android_greedy">Legacy schnell</string>
+    <string name="algorithm_native_greedy">Schnell</string>
+    <string name="algorithm_native_beam_128">Mittel</string>
+    <string name="algorithm_native_beam_512">Gut</string>
+    <string name="algorithm_native_exhaustive">Alle Zugfolgen (max. 100 ms)</string>
+    <string name="algorithm_native_pattern">Experimentell: gelernte Muster</string>
+    <string name="algorithm_native_symmetric">Experimentell: symmetrische Muster</string>
 
     <string name="undo_always">Immer</string>
     <string name="undo_unless_new_blocks">Außer neue Blöcke</string>
